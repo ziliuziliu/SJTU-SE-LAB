@@ -136,7 +136,11 @@ inode_manager::free_inode(uint32_t inum)
    * note: you need to check if the inode is already a freed one;
    * if not, clear it, and remember to write back to disk.
    */
-
+  inode *ino = get_inode(inum);
+  if (!ino || !(ino->type)) return;
+  ino->type = 0;
+  put_inode(inum, ino);
+  free(ino);
   return;
 }
 
@@ -328,6 +332,27 @@ inode_manager::remove_file(uint32_t inum)
    * your code goes here
    * note: you need to consider about both the data block and inode of the file
    */
-  
+  inode *ino = get_inode(inum);
+  int old_size = ino->size, size_left = ino->size;
+  for (int i=0;i<=32;i++) {
+    if (i!=32) {
+      bm->free_block(ino->blocks[i]);
+      old_size -= BLOCK_SIZE;
+      if (old_size <= 0) break;
+    }
+    else {
+      unsigned char buf2[BLOCK_SIZE];
+      bm->read_block(ino->blocks[i], (char *)buf2);
+      for (int j=0;j<BLOCK_SIZE;j+=4) {
+        blockid_t block_id = 0;
+        block_id |= buf2[j]; block_id |= (buf2[j+1]<<8);
+        block_id |= (buf2[j+2]<<16); block_id |= (buf2[j+3]<<24);
+        bm->free_block(block_id);
+        old_size -= BLOCK_SIZE;
+        if (old_size <= 0) break;
+      }
+    }
+  }
+  free_inode(inum);
   return;
 }
