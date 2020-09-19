@@ -255,10 +255,12 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
       if (old_size <= 0) break;
     }
     else {
+      unsigned char buf2[BLOCK_SIZE];
+      bm->read_block(ino->blocks[i], (char *)buf2);
       for (int j=0;j<BLOCK_SIZE;j+=4) {
         blockid_t block_id = 0;
-        block_id |= buf[j]; block_id |= (buf[j+1]<<8);
-        block_id |= (buf[j+2]<<16); block_id |= (buf[j+3]<<24);
+        block_id |= buf2[j]; block_id |= (buf2[j+1]<<8);
+        block_id |= (buf2[j+2]<<16); block_id |= (buf2[j+3]<<24);
         bm->free_block(block_id);
         old_size -= BLOCK_SIZE;
         if (old_size <= 0) break;
@@ -279,7 +281,6 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
     }
     else {
       unsigned char block_nums[BLOCK_SIZE];
-      memset(block_nums,0,sizeof(block_nums));
       ino->blocks[i] = bm->alloc_block();
       for (int j=0;j<BLOCK_SIZE;j+=4) {
         blockid_t block_id = bm->alloc_block();
