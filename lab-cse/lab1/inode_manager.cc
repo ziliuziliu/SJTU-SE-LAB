@@ -95,11 +95,12 @@ inode_manager::alloc_inode(uint32_t type)
   for (int i=1;i<INODE_NUM;i++) {
     inode* ino = get_inode(i);
     if (ino == NULL) {
+      ino = new inode();
       ino->type = type;
       ino->size = 0;
       ino->atime = ino->ctime = ino->mtime = 0;
       put_inode(i, ino);
-      break;
+      return i;
     }
   }
   return 0;
