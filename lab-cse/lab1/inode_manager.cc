@@ -199,11 +199,12 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
    * note: read blocks related to inode number inum,
    * and copy them to buf_out
    */
-  
+  printf("\tim: reading file %d\n",inum);  
   inode *ino = get_inode(inum);
-  char rv[DISK_SIZE+1];
+  char *rv = (char *)malloc(200050);
   int block_cnt=0, size_left;
   *size = size_left = ino->size;
+  printf("size: %d\n",ino->size);
   for (int i=0;i<=32;i++) {
     if (i!=32) {
       bm->read_block(ino->blocks[i], rv+block_cnt*BLOCK_SIZE);
@@ -212,8 +213,8 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
       if (size_left <= 0) break;
     }
     else {
-      char buf[BLOCK_SIZE];
-      bm->read_block(ino->blocks[i], buf);
+      unsigned char buf[BLOCK_SIZE];
+      bm->read_block(ino->blocks[i], (char *)buf);
       for (int j=0;j<BLOCK_SIZE;j+=4) {
         blockid_t block_id = 0;
         block_id |= buf[j]; block_id |= (buf[j+1]<<8);
@@ -242,6 +243,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
    * you need to consider the situation when the size of buf 
    * is larger or smaller than the size of original inode
    */
+  printf("\tim: writing file %d\n",inum);
   inode *ino = get_inode(inum);
 
   // free old block
@@ -276,20 +278,21 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
       if (size_left <= 0) break;
     }
     else {
-      char block_nums[BLOCK_SIZE];
+      unsigned char block_nums[BLOCK_SIZE];
+      memset(block_nums,0,sizeof(block_nums));
       ino->blocks[i] = bm->alloc_block();
       for (int j=0;j<BLOCK_SIZE;j+=4) {
         blockid_t block_id = bm->alloc_block();
         bm->write_block(block_id, buf+block_cnt*BLOCK_SIZE);
         for (int k=j;k<j+4;k++) {
-          block_nums[k] = block_id%256;
+          block_nums[k] = block_id&(0xff);
           block_id >>= 8;
         }
         block_cnt++;
         size_left -= BLOCK_SIZE;
         if (size_left <= 0) break;
       }
-      bm->write_block(ino->blocks[i], block_nums);
+      bm->write_block(ino->blocks[i],(char *) block_nums);
     }
   }
 
