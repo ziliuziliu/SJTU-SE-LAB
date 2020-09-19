@@ -67,6 +67,8 @@ class block_manager {
 #define NINDIRECT (BLOCK_SIZE / sizeof(uint))
 #define MAXFILE (NDIRECT + NINDIRECT)
 
+#define START_OF_DATA_BLOCK 1036
+
 typedef struct inode {
   short type;
   unsigned int size;

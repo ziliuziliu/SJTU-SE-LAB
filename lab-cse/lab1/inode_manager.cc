@@ -1,4 +1,5 @@
 #include "inode_manager.h"
+#include <ctime>
 
 // disk layer -----------------------------------------
 
@@ -19,6 +20,8 @@ disk::write_block(blockid_t id, const char *buf)
   memcpy(blocks[id], buf, BLOCK_SIZE);
 }
 
+
+
 // block layer -----------------------------------------
 
 // Allocate a free disk block.
@@ -30,7 +33,19 @@ block_manager::alloc_block()
    * note: you should mark the corresponding bit in block bitmap when alloc.
    * you need to think about which block you can start to be allocated.
    */
-
+  char buf[BLOCK_SIZE];
+  uint32_t byte_offset, bit_offset;
+  for (uint32_t i=START_OF_DATA_BLOCK;i<sb.nblocks;i++) {
+    if (using_blocks.count(i)>0) continue;
+    using_blocks[i]=1;
+    read_block(BBLOCK(i), buf);
+    byte_offset = (i%BPB)/8;
+    bit_offset = (i%BPB)%8;
+    buf[byte_offset] |= (1<<bit_offset);
+    write_block(BBLOCK(i), buf);
+    return i;
+  }
+  printf("\tbm: error! not enough block to alloc\n");
   return 0;
 }
 
@@ -41,7 +56,14 @@ block_manager::free_block(uint32_t id)
    * your code goes here.
    * note: you should unmark the corresponding bit in the block bitmap when free.
    */
-  
+  char buf[BLOCK_SIZE];
+  uint32_t byte_offset, bit_offset;
+  using_blocks.erase(id);
+  read_block(BBLOCK(id), buf);
+  byte_offset = (id%BPB)/8;
+  bit_offset = (id%BPB)%8;
+  buf[byte_offset] ^= (1<<bit_offset);
+  write_block(BBLOCK(id), buf);
   return;
 }
 
@@ -93,12 +115,12 @@ inode_manager::alloc_inode(uint32_t type)
    * the 1st is used for root_dir, see inode_manager::inode_manager().
    */
   for (int i=1;i<INODE_NUM;i++) {
-    inode* ino = get_inode(i);
+    inode *ino = get_inode(i);
     if (ino == NULL) {
       ino = new inode();
       ino->type = type;
       ino->size = 0;
-      ino->atime = ino->ctime = ino->mtime = 0;
+      ino->atime = ino->ctime = ino->mtime = (unsigned)std::time(0);
       put_inode(i, ino);
       return i;
     }
@@ -175,9 +197,38 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
   /*
    * your code goes here.
    * note: read blocks related to inode number inum,
-   * and copy them to buf_Out
+   * and copy them to buf_out
    */
   
+  inode *ino = get_inode(inum);
+  char rv[DISK_SIZE+1];
+  int block_cnt=0, size_left;
+  *size = size_left = ino->size;
+  for (int i=0;i<=32;i++) {
+    if (i!=32) {
+      bm->read_block(ino->blocks[i], rv+block_cnt*BLOCK_SIZE);
+      block_cnt++;
+      size_left -= BLOCK_SIZE;
+      if (size_left <= 0) break;
+    }
+    else {
+      char buf[BLOCK_SIZE];
+      bm->read_block(ino->blocks[i], buf);
+      for (int j=0;j<BLOCK_SIZE;j+=4) {
+        blockid_t block_id = 0;
+        block_id |= buf[j]; block_id |= (buf[j+1]<<8);
+        block_id |= (buf[j+2]<<16); block_id |= (buf[j+3]<<24);
+        bm->read_block(block_id, rv+block_cnt*BLOCK_SIZE);
+        block_cnt++;
+        size_left -= BLOCK_SIZE;
+        if (size_left <= 0) break;
+      }
+    }
+  }
+  ino->atime = (unsigned)std::time(0);
+  put_inode(inum, ino);
+  free(ino);
+  *buf_out = rv;
   return;
 }
 
@@ -191,7 +242,61 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
    * you need to consider the situation when the size of buf 
    * is larger or smaller than the size of original inode
    */
-  
+  inode *ino = get_inode(inum);
+
+  // free old block
+  int old_size = ino->size, size_left = size;
+  for (int i=0;i<=32;i++) {
+    if (i!=32) {
+      bm->free_block(ino->blocks[i]);
+      old_size -= BLOCK_SIZE;
+      if (old_size <= 0) break;
+    }
+    else {
+      for (int j=0;j<BLOCK_SIZE;j+=4) {
+        blockid_t block_id = 0;
+        block_id |= buf[j]; block_id |= (buf[j+1]<<8);
+        block_id |= (buf[j+2]<<16); block_id |= (buf[j+3]<<24);
+        bm->free_block(block_id);
+        old_size -= BLOCK_SIZE;
+        if (old_size <= 0) break;
+      }
+    }
+  }
+
+  //allocate and write new block
+  int block_cnt = 0;
+  ino->size = size;
+  for (int i=0;i<=32;i++) {
+    if (i!=32) {
+      ino->blocks[i] = bm->alloc_block();
+      bm->write_block(ino->blocks[i],buf+block_cnt*BLOCK_SIZE);
+      block_cnt++;
+      size_left -= BLOCK_SIZE;
+      if (size_left <= 0) break;
+    }
+    else {
+      char block_nums[BLOCK_SIZE];
+      ino->blocks[i] = bm->alloc_block();
+      for (int j=0;j<BLOCK_SIZE;j+=4) {
+        blockid_t block_id = bm->alloc_block();
+        bm->write_block(block_id, buf+block_cnt*BLOCK_SIZE);
+        for (int k=j;k<j+4;k++) {
+          block_nums[k] = block_id%256;
+          block_id >>= 8;
+        }
+        block_cnt++;
+        size_left -= BLOCK_SIZE;
+        if (size_left <= 0) break;
+      }
+      bm->write_block(ino->blocks[i], block_nums);
+    }
+  }
+
+  //update inode info
+  ino->atime = ino->ctime = ino->mtime = (unsigned)std::time(0);
+  put_inode(inum, ino);
+  free(ino);
   return;
 }
 
