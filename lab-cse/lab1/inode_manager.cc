@@ -10,11 +10,13 @@ disk::disk()
 void
 disk::read_block(blockid_t id, char *buf)
 {
+  memcpy(buf, blocks[id], BLOCK_SIZE);
 }
 
 void
 disk::write_block(blockid_t id, const char *buf)
 {
+  memcpy(blocks[id], buf, BLOCK_SIZE);
 }
 
 // block layer -----------------------------------------
@@ -90,7 +92,16 @@ inode_manager::alloc_inode(uint32_t type)
    * note: the normal inode block should begin from the 2nd inode block.
    * the 1st is used for root_dir, see inode_manager::inode_manager().
    */
-  return 1;
+  for (int i=1;i<INODE_NUM;i++) {
+    inode* ino = get_inode(i);
+    if (ino == NULL) continue;
+    ino->type = type;
+    ino->size = 0;
+    ino->atime = ino->ctime = ino->mtime = 0;
+    put_inode(i, ino);
+    break;
+  }
+  return 0;
 }
 
 void
@@ -190,7 +201,12 @@ inode_manager::getattr(uint32_t inum, extent_protocol::attr &a)
    * note: get the attributes of inode inum.
    * you can refer to "struct attr" in extent_protocol.h
    */
-  
+  inode *ino = get_inode(inum);
+  a.type = ino->type;
+  a.atime = ino->atime;
+  a.ctime = ino->ctime;
+  a.mtime = ino->mtime;
+  a.size = ino->size;
   return;
 }
 
