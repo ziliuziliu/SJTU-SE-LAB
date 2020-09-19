@@ -136,6 +136,7 @@ inode_manager::free_inode(uint32_t inum)
    * note: you need to check if the inode is already a freed one;
    * if not, clear it, and remember to write back to disk.
    */
+  printf("\tim: free inode %d\n",inum);
   inode *ino = get_inode(inum);
   if (!ino || !(ino->type)) return;
   ino->type = 0;
@@ -317,6 +318,7 @@ inode_manager::getattr(uint32_t inum, extent_protocol::attr &a)
    * you can refer to "struct attr" in extent_protocol.h
    */
   inode *ino = get_inode(inum);
+  if (!ino) return;
   a.type = ino->type;
   a.atime = ino->atime;
   a.ctime = ino->ctime;
@@ -332,8 +334,9 @@ inode_manager::remove_file(uint32_t inum)
    * your code goes here
    * note: you need to consider about both the data block and inode of the file
    */
+  printf("\tim: removing file %d\n",inum);
   inode *ino = get_inode(inum);
-  int old_size = ino->size, size_left = ino->size;
+  int old_size = ino->size;
   for (int i=0;i<=32;i++) {
     if (i!=32) {
       bm->free_block(ino->blocks[i]);
