@@ -295,10 +295,8 @@ fuseserver_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     e.entry_timeout = 0.0;
     e.generation = 0;
     bool found = false;
-
      yfs_client::inum ino;
      yfs->lookup(parent, name, found, ino);
-
     if (found) {
         e.ino = ino;
         getattr(ino, e.attr);

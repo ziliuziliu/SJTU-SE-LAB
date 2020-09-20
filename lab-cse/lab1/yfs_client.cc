@@ -175,6 +175,7 @@ yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
      * note: lookup file from parent dir according to name;
      * you should design the format of directory content.
      */
+    printf("%d\n%s\n",parent,name);
     std::list<dirent> list;
     readdir(parent, list);
     for (std::list<dirent>::iterator it=list.begin(); it!=list.end(); ++it) {
@@ -199,11 +200,12 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
      */
     // name,inum:name,inum:name,inum:name,inum: ......
     std::string buf;
-    int start = 0, end = -1;
+    ec->get(dir, buf);
+    int start = 0, end = -1, len = buf.length();
     for (;;) {
         std::string name, inum_str;
         inum inum;
-        if (start == std::string::npos) break;
+        if (start >= len) break;
         end = buf.find(",");
         name = buf.substr(start, end - start);
         start = end + 1;
