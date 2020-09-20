@@ -140,7 +140,7 @@ yfs_client::addtoparent(inum parent, const char *name, inum child)
     std::string buf;
     ec->get(parent, buf);
     buf.append(name);buf.append(",");
-    buf.append(std::to_string(child));buf.append(":");
+    buf.append(filename(child));buf.append(":");
     ec->put(parent, buf);
 }
 
@@ -192,7 +192,6 @@ yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
      * you should design the format of directory content.
      */
     // name,inum:name,inum:name,inum:name,inum: ......
-    printf("%d\n%s\n",parent,name);
     std::list<dirent> list;
     readdir(parent, list);
     for (std::list<dirent>::iterator it=list.begin(); it!=list.end(); ++it) {
@@ -222,10 +221,10 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
         std::string name, inum_str;
         inum inum;
         if (start >= len) break;
-        end = buf.find(",");
+        end = buf.find(",",start);
         name = buf.substr(start, end - start);
         start = end + 1;
-        end = buf.find(":");
+        end = buf.find(":",start);
         inum_str = buf.substr(start, end - start);
         inum = n2i(inum_str);
         dirent entry;
