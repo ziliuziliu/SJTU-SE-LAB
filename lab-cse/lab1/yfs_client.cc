@@ -1,4 +1,4 @@
-// yfs client.  implements FS operations using extent and lock server
+// /fs client.  implements FS operations using extent and lock server
 #include "yfs_client.h"
 #include "extent_client.h"
 #include <sstream>
@@ -248,8 +248,15 @@ yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
      * note: read using ec->get().
      */
     std::string buf;
-    buf = ec->get(ino, buf);
-    if (off < buf.size()) data = buf.substr(off, size);
+    ec->get(ino, buf);
+    printf("Reading\n");
+    printf("%d\n",ino);
+    printf("%d %d\n",off, size);
+    printf("bufsize: %d\n",buf.size());
+    if (off > buf.size()) data = "";
+    else if (off+size > buf.size()) data=buf.substr(off);
+    else data=buf.substr(off, size);
+    printf("%s\n",data.c_str());
     return r;
 }
 
@@ -264,10 +271,16 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
      * when off > length of original file, fill the holes with '\0'.
      */
     std::string buf;
-    buf = ec->get(ino, buf);
-    if (off+size>buf.size()) setattr(ino, off+size);
-    buf = ec->get(ino, buf);
-    buf.replace(off, size, data);
+    ec->get(ino, buf);
+    printf("Writing\n");
+    printf("%d\n",ino);
+    printf("%d %d\n",off, size);
+    if (off+size > buf.size()) buf.resize(off+size);
+    for (int i=off;i<off+size;i++)
+      buf[i]=data[i-off];
+    printf("size: %d\n",buf.size());
+    printf("%d\n",strlen(data));
+    printf("%s\n",buf.c_str());
     ec->put(ino, buf);
     return r;
 }
