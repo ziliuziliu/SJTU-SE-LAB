@@ -124,13 +124,15 @@ int
 yfs_client::setattr(inum ino, size_t size)
 {
     int r = OK;
-
     /*
      * your code goes here.
      * note: get the content of inode ino, and modify its content
      * according to the size (<, =, or >) content length.
      */
-
+    std::string buf;
+    ec->get(ino, buf);
+    buf.resize(size);
+    ec->put(ino, buf);
     return r;
 }
 
@@ -142,6 +144,7 @@ yfs_client::addtoparent(inum parent, const char *name, inum child)
     buf.append(name);buf.append(",");
     buf.append(filename(child));buf.append(":");
     ec->put(parent, buf);
+    return OK;
 }
 
 int
@@ -240,12 +243,13 @@ int
 yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
 {
     int r = OK;
-
     /*
      * your code goes here.
      * note: read using ec->get().
      */
-
+    std::string buf;
+    buf = ec->get(ino, buf);
+    if (off < buf.size()) data = buf.substr(off, size);
     return r;
 }
 
@@ -254,13 +258,17 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
         size_t &bytes_written)
 {
     int r = OK;
-
     /*
      * your code goes here.
      * note: write using ec->put().
      * when off > length of original file, fill the holes with '\0'.
      */
-
+    std::string buf;
+    buf = ec->get(ino, buf);
+    if (off+size>buf.size()) setattr(ino, off+size);
+    buf = ec->get(ino, buf);
+    buf.replace(off, size, data);
+    ec->put(ino, buf);
     return r;
 }
 
