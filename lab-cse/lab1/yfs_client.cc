@@ -52,14 +52,14 @@ yfs_client::isfile(inum inum)
     if (a.type == extent_protocol::T_FILE) {
         printf("isfile: %lld is a file\n", inum);
         return true;
-    } 
+    }
     printf("isfile: %lld is a dir\n", inum);
     return false;
 }
 /** Your code here for Lab...
  * You may need to add routines such as
  * readlink, issymlink here to implement symbolic link.
- * 
+ *
  * */
 
 bool
@@ -138,13 +138,15 @@ int
 yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
 {
     int r = OK;
-
     /*
      * your code goes here.
      * note: lookup is what you need to check if file exist;
      * after create file or dir, you must remember to modify the parent infomation.
      */
-
+    bool found = false;
+    lookup(parent, name, found, ino_out);
+    if (found) r = EXIST;
+    else ec->create(extent_protocol::T_FILE, ino_out);
     return r;
 }
 
@@ -152,13 +154,15 @@ int
 yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
 {
     int r = OK;
-
     /*
      * your code goes here.
      * note: lookup is what you need to check if directory exist;
      * after create file or dir, you must remember to modify the parent infomation.
      */
-
+    bool found = false;
+    lookup(parent, name, found, ino_out);
+    if (found) r = EXIST;
+    else ec->create(extent_protocol::T_DIR, ino_out);
     return r;
 }
 
@@ -166,13 +170,21 @@ int
 yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
 {
     int r = OK;
-
     /*
      * your code goes here.
      * note: lookup file from parent dir according to name;
      * you should design the format of directory content.
      */
-
+    std::list<dirent> list;
+    readdir(parent, list);
+    for (std::list<dirent>::iterator it=list.begin(); it!=list.end(); ++it) {
+        if (it->name.compare(name) == 0) {
+            found = true;
+            ino_out = it->inum;
+            return r;
+        }
+    }
+    found = false;
     return r;
 }
 
@@ -180,13 +192,30 @@ int
 yfs_client::readdir(inum dir, std::list<dirent> &list)
 {
     int r = OK;
-
     /*
      * your code goes here.
      * note: you should parse the dirctory content using your defined format,
      * and push the dirents to the list.
      */
-
+    // name,inum:name,inum:name,inum:name,inum: ......
+    std::string buf;
+    int start = 0, end = -1;
+    for (;;) {
+        std::string name, inum_str;
+        inum inum;
+        if (start == std::string::npos) break;
+        end = buf.find(",");
+        name = buf.substr(start, end - start);
+        start = end + 1;
+        end = buf.find(":");
+        inum_str = buf.substr(start, end - start);
+        inum = n2i(inum_str);
+        dirent entry;
+        entry.name = name;
+        entry.inum = inum;
+        list.push_back(entry);
+        start = end + 1;
+    }
     return r;
 }
 
