@@ -135,6 +135,16 @@ yfs_client::setattr(inum ino, size_t size)
 }
 
 int
+yfs_client::addtoparent(inum parent, const char *name, inum child)
+{
+    std::string buf;
+    ec->get(parent, buf);
+    buf.append(name);buf.append(",");
+    buf.append(std::to_string(child));buf.append(":");
+    ec->put(parent, buf);
+}
+
+int
 yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
 {
     int r = OK;
@@ -146,7 +156,10 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
     bool found = false;
     lookup(parent, name, found, ino_out);
     if (found) r = EXIST;
-    else ec->create(extent_protocol::T_FILE, ino_out);
+    else {
+        ec->create(extent_protocol::T_FILE, ino_out);
+        addtoparent(parent, name, ino_out);
+    }
     return r;
 }
 
@@ -162,7 +175,10 @@ yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
     bool found = false;
     lookup(parent, name, found, ino_out);
     if (found) r = EXIST;
-    else ec->create(extent_protocol::T_DIR, ino_out);
+    else {
+        ec->create(extent_protocol::T_DIR, ino_out);
+        addtoparent(parent, name, ino_out);
+    }
     return r;
 }
 
@@ -175,6 +191,7 @@ yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
      * note: lookup file from parent dir according to name;
      * you should design the format of directory content.
      */
+    // name,inum:name,inum:name,inum:name,inum: ......
     printf("%d\n%s\n",parent,name);
     std::list<dirent> list;
     readdir(parent, list);
@@ -198,7 +215,6 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
      * note: you should parse the dirctory content using your defined format,
      * and push the dirents to the list.
      */
-    // name,inum:name,inum:name,inum:name,inum: ......
     std::string buf;
     ec->get(dir, buf);
     int start = 0, end = -1, len = buf.length();
