@@ -231,8 +231,7 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
         inum_str = buf.substr(start, end - start);
         inum = n2i(inum_str);
         dirent entry;
-        entry.name = name;
-        entry.inum = inum;
+        entry.name = name;entry.inum = inum;
         list.push_back(entry);
         start = end + 1;
     }
@@ -249,10 +248,6 @@ yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
      */
     std::string buf;
     ec->get(ino, buf);
-    printf("Reading\n");
-    printf("%d\n",ino);
-    printf("%d %d\n",off, size);
-    printf("bufsize: %d\n",buf.size());
     if (off > buf.size()) data = "";
     else if (off+size > buf.size()) data=buf.substr(off);
     else data=buf.substr(off, size);
@@ -272,29 +267,30 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
      */
     std::string buf;
     ec->get(ino, buf);
-    printf("Writing\n");
-    printf("%d\n",ino);
-    printf("%d %d\n",off, size);
     if (off+size > buf.size()) buf.resize(off+size);
     for (int i=off;i<off+size;i++)
       buf[i]=data[i-off];
-    printf("size: %d\n",buf.size());
-    printf("%d\n",strlen(data));
-    printf("%s\n",buf.c_str());
     ec->put(ino, buf);
+    bytes_written = size;
     return r;
 }
 
 int yfs_client::unlink(inum parent,const char *name)
 {
     int r = OK;
-
     /*
      * your code goes here.
      * note: you should remove the file using ec->remove,
      * and update the parent directory content.
      */
-
+    std::string buf;
+    ec->get(parent, buf);
+    size_t filename_pos = buf.find(name);
+    size_t inum_pos = buf.find(",", filename_pos); inum_pos++;
+    size_t end_pos = buf.find(":", inum_pos);
+    ec->remove(std::stol(buf.substr(inum_pos, end_pos-inum_pos)));
+    buf.erase(filename_pos, end_pos-filename_pos+1);
+    ec->put(parent, buf);
     return r;
 }
 
