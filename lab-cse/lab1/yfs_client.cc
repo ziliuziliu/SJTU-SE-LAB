@@ -186,6 +186,20 @@ yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
 }
 
 int
+yfs_client::mksym(inum parent, const char *name, mode_t mode, inum &ino_out)
+{
+    int r = OK;
+    bool found = false;
+    lookup(parent, name, found, ino_out);
+    if (found) r = EXIST;
+    else {
+        ec->create(extent_protocol::T_SYMLINK, ino_out);
+        addtoparent(parent, name, ino_out);
+    }
+    return r;
+}
+
+int
 yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
 {
     int r = OK;
@@ -294,3 +308,18 @@ int yfs_client::unlink(inum parent,const char *name)
     return r;
 }
 
+int yfs_client::symlink(const char *link, inum parent, const char *name, inum &ino_out) {
+    int r = OK;
+    size_t length = strlen(link), bytes_written;
+    inum ino;
+    r = mksym(parent, name, 0, ino);
+    if (r != EXIST)
+        r = write(ino, length, 0, link, bytes_written);
+    return r;
+}
+
+int yfs_client::readlink(inum ino, std::string &buf) {
+    int r = OK;
+    ec->get(ino, buf);
+    return r;
+}
