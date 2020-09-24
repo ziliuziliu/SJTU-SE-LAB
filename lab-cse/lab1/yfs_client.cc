@@ -53,7 +53,7 @@ yfs_client::isfile(inum inum)
         printf("isfile: %lld is a file\n", inum);
         return true;
     }
-    printf("isfile: %lld is a dir\n", inum);
+    printf("isfile: %lld is not a file\n", inum);
     return false;
 }
 /** Your code here for Lab...
@@ -61,12 +61,40 @@ yfs_client::isfile(inum inum)
  * readlink, issymlink here to implement symbolic link.
  *
  * */
+bool
+yfs_client::issymlink(inum inum)
+{
+    extent_protocol::attr a;
+
+    if (ec->getattr(inum, a) != extent_protocol::OK) {
+        printf("error getting attr\n");
+        return false;
+    }
+
+    if (a.type == extent_protocol::T_SYMLINK) {
+        printf("isfile: %lld is a symlink\n", inum);
+        return true;
+    }
+    printf("isfile: %lld is not a symlink\n", inum);
+    return false;
+}
 
 bool
 yfs_client::isdir(inum inum)
 {
-    // Oops! is this still correct when you implement symlink?
-    return ! isfile(inum);
+    extent_protocol::attr a;
+
+    if (ec->getattr(inum, a) != extent_protocol::OK) {
+        printf("error getting attr\n");
+        return false;
+    }
+
+    if (a.type == extent_protocol::T_DIR) {
+        printf("isfile: %lld is a dir\n", inum);
+        return true;
+    }
+    printf("isfile: %lld is not a dir\n", inum);
+    return false;
 }
 
 int
@@ -110,6 +138,24 @@ release:
     return r;
 }
 
+int
+yfs_client::getsymlink(inum inum, symlinkinfo &sin)
+{
+    int r = OK;
+
+    printf("getdir %016llx\n", inum);
+    extent_protocol::attr a;
+    if (ec->getattr(inum, a) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
+    sin.atime = a.atime;
+    sin.mtime = a.mtime;
+    sin.ctime = a.ctime;
+
+    release:
+    return r;
+}
 
 #define EXT_RPC(xx) do { \
     if ((xx) != extent_protocol::OK) { \
@@ -309,9 +355,6 @@ int yfs_client::unlink(inum parent,const char *name)
 }
 
 int yfs_client::symlink(const char *link, inum parent, const char *name, inum &ino_out) {
-    printf("symlink\n:");
-    printf("link %s\n",link);
-    printf("name %s\n",name);
     int r = OK;
     size_t length = strlen(link), bytes_written;
     inum ino;
@@ -322,7 +365,6 @@ int yfs_client::symlink(const char *link, inum parent, const char *name, inum &i
 }
 
 int yfs_client::readlink(inum ino, std::string &buf) {
-    printf("unlink %d\n",ino);
     int r = OK;
     ec->get(ino, buf);
     return r;
