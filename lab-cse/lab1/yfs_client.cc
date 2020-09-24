@@ -309,6 +309,9 @@ int yfs_client::unlink(inum parent,const char *name)
 }
 
 int yfs_client::symlink(const char *link, inum parent, const char *name, inum &ino_out) {
+    printf("symlink\n:");
+    printf("link %s\n",link);
+    printf("name %s\n",name);
     int r = OK;
     size_t length = strlen(link), bytes_written;
     inum ino;
@@ -319,6 +322,7 @@ int yfs_client::symlink(const char *link, inum parent, const char *name, inum &i
 }
 
 int yfs_client::readlink(inum ino, std::string &buf) {
+    printf("unlink %d\n",ino);
     int r = OK;
     ec->get(ino, buf);
     return r;
