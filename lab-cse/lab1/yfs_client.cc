@@ -288,7 +288,7 @@ int yfs_client::unlink(inum parent,const char *name)
     size_t filename_pos = buf.find(name);
     size_t inum_pos = buf.find(",", filename_pos); inum_pos++;
     size_t end_pos = buf.find(":", inum_pos);
-    ec->remove(std::stol(buf.substr(inum_pos, end_pos-inum_pos)));
+    ec->remove(atoi(buf.substr(inum_pos, end_pos-inum_pos).c_str()));
     buf.erase(filename_pos, end_pos-filename_pos+1);
     ec->put(parent, buf);
     return r;
