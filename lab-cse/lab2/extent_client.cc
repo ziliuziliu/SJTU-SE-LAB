@@ -21,9 +21,8 @@ extent_protocol::status
 extent_client::create(uint32_t type, extent_protocol::extentid_t &id)
 {
   extent_protocol::status ret = extent_protocol::OK;
-  int r;
   // Your lab2 part1 code goes here
-  ret = cl->call(extent_protocol::create, cl->id(), type, id, r);
+  ret = cl->call(extent_protocol::create, cl->id(), type, id);
   VERIFY (ret == extent_protocol::OK);
   return ret;
 }
@@ -34,7 +33,7 @@ extent_client::get(extent_protocol::extentid_t eid, std::string &buf)
   extent_protocol::status ret = extent_protocol::OK;
   int r;
   // Your lab2 part1 code goes here
-  ret = cl->call(extent_protocol::get, cl->id(), eid, buf, r);
+  ret = cl->call(extent_protocol::get, cl->id(), eid, buf);
   VERIFY (ret == extent_protocol::OK);
   return ret;
 }
@@ -46,7 +45,7 @@ extent_client::getattr(extent_protocol::extentid_t eid,
   extent_protocol::status ret = extent_protocol::OK;
   int r;
   // Your lab2 part1 code goes here
-  ret = cl->call(extent_protocol::getattr, cl->id(), eid, attr, r);
+  ret = cl->call(extent_protocol::getattr, cl->id(), eid, attr);
   VERIFY (ret == extent_protocol::OK);
   return ret;
 }
