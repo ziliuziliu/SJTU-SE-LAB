@@ -40,12 +40,13 @@ bool
 yfs_client::isfile(inum inum)
 {
     extent_protocol::attr a;
-
+    lc->acquire(inum);
     if (ec->getattr(inum, a) != extent_protocol::OK) {
+        lc->release(inum);
         printf("error getting attr\n");
         return false;
     }
-
+    lc->release(inum);
     if (a.type == extent_protocol::T_FILE) {
         printf("isfile: %lld is a file\n", inum);
         return true;
@@ -62,12 +63,13 @@ bool
 yfs_client::issymlink(inum inum)
 {
     extent_protocol::attr a;
-
+    lc->acquire(inum);
     if (ec->getattr(inum, a) != extent_protocol::OK) {
+        lc->release(inum);
         printf("error getting attr\n");
         return false;
     }
-
+    lc->release(inum);
     if (a.type == extent_protocol::T_SYMLINK) {
         printf("isfile: %lld is a symlink\n", inum);
         return true;
@@ -80,12 +82,13 @@ bool
 yfs_client::isdir(inum inum)
 {
     extent_protocol::attr a;
-
+    lc->acquire(inum);
     if (ec->getattr(inum, a) != extent_protocol::OK) {
+        lc->release(inum);
         printf("error getting attr\n");
         return false;
     }
-
+    lc->release(inum);
     if (a.type == extent_protocol::T_DIR) {
         printf("isfile: %lld is a dir\n", inum);
         return true;
@@ -98,9 +101,9 @@ int
 yfs_client::getfile(inum inum, fileinfo &fin)
 {
     int r = OK;
-
     printf("getfile %016llx\n", inum);
     extent_protocol::attr a;
+    lc->acquire(inum);
     if (ec->getattr(inum, a) != extent_protocol::OK) {
         r = IOERR;
         goto release;
@@ -113,6 +116,7 @@ yfs_client::getfile(inum inum, fileinfo &fin)
     printf("getfile %016llx -> sz %llu\n", inum, fin.size);
 
 release:
+    lc->release(inum);
     return r;
 }
 
@@ -120,9 +124,9 @@ int
 yfs_client::getdir(inum inum, dirinfo &din)
 {
     int r = OK;
-
     printf("getdir %016llx\n", inum);
     extent_protocol::attr a;
+    lc->acquire(inum);
     if (ec->getattr(inum, a) != extent_protocol::OK) {
         r = IOERR;
         goto release;
@@ -132,6 +136,7 @@ yfs_client::getdir(inum inum, dirinfo &din)
     din.ctime = a.ctime;
 
 release:
+    lc->release(inum);
     return r;
 }
 
@@ -139,9 +144,9 @@ int
 yfs_client::getsymlink(inum inum, symlinkinfo &sin)
 {
     int r = OK;
-
     printf("getdir %016llx\n", inum);
     extent_protocol::attr a;
+    lc->acquire(inum);
     if (ec->getattr(inum, a) != extent_protocol::OK) {
         r = IOERR;
         goto release;
@@ -151,6 +156,7 @@ yfs_client::getsymlink(inum inum, symlinkinfo &sin)
     sin.ctime = a.ctime;
 
     release:
+    lc->release(inum);
     return r;
 }
 
@@ -173,9 +179,11 @@ yfs_client::setattr(inum ino, size_t size)
      * according to the size (<, =, or >) content length.
      */
     std::string buf;
+    lc->acquire(ino);
     ec->get(ino, buf);
     buf.resize(size);
     ec->put(ino, buf);
+    lc->release(ino);
     return r;
 }
 
@@ -183,10 +191,12 @@ int
 yfs_client::addtoparent(inum parent, const char *name, inum child)
 {
     std::string buf;
+    lc->acquire(parent);
     ec->get(parent, buf);
     buf.append(name);buf.append(",");
     buf.append(filename(child));buf.append(":");
     ec->put(parent, buf);
+    lc->release(parent);
     return OK;
 }
 
@@ -275,7 +285,9 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
      * and push the dirents to the list.
      */
     std::string buf;
+    lc->acquire(dir);
     ec->get(dir, buf);
+    lc->release(dir);
     int start = 0, end = -1, len = buf.length();
     for (;;) {
         std::string name, inum_str;
@@ -304,7 +316,9 @@ yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
      * note: read using ec->get().
      */
     std::string buf;
+    lc->acquire(ino);
     ec->get(ino, buf);
+    lc->release(ino);
     if (off > buf.size()) data = "";
     else if (off+size > buf.size()) data=buf.substr(off);
     else data=buf.substr(off, size);
@@ -322,11 +336,13 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
      * when off > length of original file, fill the holes with '\0'.
      */
     std::string buf;
+    lc->acquire(ino);
     ec->get(ino, buf);
     if (off+size > buf.size()) buf.resize(off+size);
     for (int i=off;i<off+size;i++)
       buf[i]=data[i-off];
     ec->put(ino, buf);
+    lc->release(ino);
     bytes_written = size;
     return r;
 }
@@ -340,6 +356,7 @@ int yfs_client::unlink(inum parent,const char *name)
      * and update the parent directory content.
      */
     std::string buf;
+    lc->acquire(parent);
     ec->get(parent, buf);
     size_t filename_pos = buf.find(name);
     size_t inum_pos = buf.find(",", filename_pos); inum_pos++;
@@ -347,22 +364,27 @@ int yfs_client::unlink(inum parent,const char *name)
     ec->remove(atoi(buf.substr(inum_pos, end_pos-inum_pos).c_str()));
     buf.erase(filename_pos, end_pos-filename_pos+1);
     ec->put(parent, buf);
+    lc->release(parent);
     return r;
 }
 
 int yfs_client::symlink(const char *link, inum parent, const char *name, inum &ino_out) {
     int r = OK;
-    size_t length = strlen(link), bytes_written;
     inum ino;
     r = mksym(parent, name, 0, ino);
-    if (r != EXIST)
+    if (r != EXIST) {
+        lc->acquire(ino);
         r = ec->put(ino, std::string(link));
+        lc->release(ino);
+    }
     ino_out = ino;
     return r;
 }
 
 int yfs_client::readlink(inum ino, std::string &buf) {
     int r = OK;
+    lc->acquire(ino);
     ec->get(ino, buf);
+    lc->release(ino);
     return r;
 }
