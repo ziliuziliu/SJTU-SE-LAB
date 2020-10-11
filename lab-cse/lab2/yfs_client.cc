@@ -191,12 +191,10 @@ int
 yfs_client::addtoparent(inum parent, const char *name, inum child)
 {
     std::string buf;
-    lc->acquire(parent);
     ec->get(parent, buf);
     buf.append(name);buf.append(",");
     buf.append(filename(child));buf.append(":");
     ec->put(parent, buf);
-    lc->release(parent);
     return OK;
 }
 
@@ -210,12 +208,14 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
      * after create file or dir, you must remember to modify the parent infomation.
      */
     bool found = false;
+    lc->acquire(parent);
     lookup(parent, name, found, ino_out);
     if (found) r = EXIST;
     else {
         ec->create(extent_protocol::T_FILE, ino_out);
         addtoparent(parent, name, ino_out);
     }
+    lc->release(parent);
     return r;
 }
 
@@ -229,12 +229,14 @@ yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
      * after create file or dir, you must remember to modify the parent infomation.
      */
     bool found = false;
+    lc->acquire(parent);
     lookup(parent, name, found, ino_out);
     if (found) r = EXIST;
     else {
         ec->create(extent_protocol::T_DIR, ino_out);
         addtoparent(parent, name, ino_out);
     }
+    lc->release(parent);
     return r;
 }
 
@@ -243,12 +245,14 @@ yfs_client::mksym(inum parent, const char *name, mode_t mode, inum &ino_out)
 {
     int r = OK;
     bool found = false;
+    lc->acquire(parent);
     lookup(parent, name, found, ino_out);
     if (found) r = EXIST;
     else {
         ec->create(extent_protocol::T_SYMLINK, ino_out);
         addtoparent(parent, name, ino_out);
     }
+    lc->release(parent);
     return r;
 }
 
@@ -285,9 +289,7 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
      * and push the dirents to the list.
      */
     std::string buf;
-    lc->acquire(dir);
     ec->get(dir, buf);
-    lc->release(dir);
     int start = 0, end = -1, len = buf.length();
     for (;;) {
         std::string name, inum_str;
