@@ -17,17 +17,47 @@ lock_server_cache::lock_server_cache()
 
 int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id, int &)
 {
-  lock_protocol::status ret = lock_protocol::OK;
+  lock_protocol::status result = lock_protocol::OK;
   // Your lab2 part3 code goes here
-  return ret;
+  pthread_mutex_lock(&mutex);
+  if (locks.count(lid) == 0) {
+      std::queue<std::string> client_list;
+      locks[lid] = client_list;
+  }
+  if (locks[lid].empty()) {
+    locks[lid].push(id);
+    pthread_mutex_unlock(&mutex);
+    return result;
+  }
+  rlock_protocol::status ret = rlock_protocol::OK;
+  std::string pre_client_dst = locks[lid].back();
+  handle h(pre_client_dst);
+  locks[lid].push(id);
+  if (h.safebind()) {
+      int r;
+      pthread_mutex_unlock(&mutex);
+      ret = h.safebind()->call(rlock_protocol::revoke, lid, r);
+      pthread_mutex_lock(&mutex);
+  }
+  return ret == rlock_protocol::OK ? lock_protocol::OK : lock_protocol::RETRY;
 }
 
 int 
-lock_server_cache::release(lock_protocol::lockid_t lid, std::string id, int &r)
+lock_server_cache::release(lock_protocol::lockid_t lid, std::string id, int &)
 {
-  lock_protocol::status ret = lock_protocol::OK;
+  lock_protocol::status result = lock_protocol::OK;
   // Your lab2 part3 code goes here
-  return ret;
+  pthread_mutex_lock(&mutex);
+  locks[lid].pop();
+  std::string top_client_dst = locks[lid].front();
+  handle h(top_client_dst);
+  if (h.safebind()) {
+      int r;
+      pthread_mutex_unlock(&mutex);
+      h.safebind()->call(rlock_protocol::retry, lid, r);
+      return result;
+  }
+  return result;
 }
 
 lock_protocol::status

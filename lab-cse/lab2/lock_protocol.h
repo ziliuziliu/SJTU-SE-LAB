@@ -19,7 +19,7 @@ public:
 
 class rlock_protocol {
 public:
-  enum xxstatus { OK, RPCERR };
+  enum xxstatus { OK, RETRY, RPCERR };
   typedef int status;
   enum rpc_numbers {
     revoke = 0x8001,
