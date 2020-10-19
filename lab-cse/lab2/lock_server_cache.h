@@ -11,8 +11,8 @@
 class lock_server_cache {
  private:
   int nacquire;
-  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-  std::map<lock_protocol::lockid_t, std::queue<std::string>> locks;
+  pthread_mutex_t mutex;
+  std::map<lock_protocol::lockid_t, std::queue<std::string> > locks;
  public:
   lock_server_cache();
   lock_protocol::status stat(lock_protocol::lockid_t, int &);
