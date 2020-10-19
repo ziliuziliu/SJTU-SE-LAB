@@ -35,7 +35,7 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
   int result = lock_protocol::OK;
   int r;
   // Your lab2 part3 code goes here
-  tprintf("Acquiring lock %d by thread %d\n", lid, pthread_self());
+  //tprintf("Acquiring lock %d by thread %d\n", lid, pthread_self());
   pthread_mutex_lock(&mutex);
   if (locks.count(lid) == 0) {
       locks[lid] = NONE;
@@ -49,8 +49,9 @@ ACQUIRE_LOCK_FROM_SERVER:
       lock_protocol::status ret = cl->call(lock_protocol::acquire, lid, id, r);
       pthread_mutex_lock(&mutex);
       if (ret == lock_protocol::RETRY) {
+          //retry handler to wake up
           while (locks[lid] != FREE && locks[lid] != LOCKED) {
-              if (locks[lid] == NONE)
+              if (locks[lid] == NONE) // might be revoked: re-acquire from server
                   goto ACQUIRE_LOCK_FROM_SERVER;
               pthread_cond_wait(&cvs[lid], &mutex);
           }
@@ -60,7 +61,7 @@ ACQUIRE_LOCK_FROM_SERVER:
       return result;
   }
   while (locks[lid] != FREE) {
-      if (locks[lid] == NONE)
+      if (locks[lid] == NONE) // might be revoked: re-acquire from server
           goto ACQUIRE_LOCK_FROM_SERVER;
       pthread_cond_wait(&cvs[lid], &mutex);
   }
@@ -74,9 +75,9 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
 {
   int result = lock_protocol::OK;
   // Your lab2 part3 code goes here
-  tprintf("Releasing lock %d by thread %d\n", lid, pthread_self());
+  //tprintf("Releasing lock %d by thread %d\n", lid, pthread_self());
   pthread_mutex_lock(&mutex);
-  if (revoke_flag[lid]) {
+  if (revoke_flag[lid]) { // revoke lock at once
       int r;
       locks[lid] = RELEASING;
       pthread_mutex_unlock(&mutex);
@@ -84,11 +85,13 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
       pthread_mutex_lock(&mutex);
       locks[lid] = NONE;
       revoke_flag[lid] = false;
+      // tell other thread to re-acquire lock from server, or they'll sleep permanently
       pthread_cond_signal(&cvs[lid]);
       pthread_mutex_unlock(&mutex);
       return result;
   }
   locks[lid] = FREE;
+  // wake up another thread
   pthread_cond_signal(&cvs[lid]);
   pthread_mutex_unlock(&mutex);
   return result;
@@ -100,23 +103,23 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
 {
   int result = rlock_protocol::OK;
   // Your lab2 part3 code goes here
-  tprintf("Revoking lock %d by thread %d\n", lid, pthread_self());
+  //tprintf("Revoking lock %d by thread %d\n", lid, pthread_self());
   pthread_mutex_lock(&mutex);
-  if (locks[lid] == FREE) {
+  if (locks[lid] == FREE) { // release at once
       int r;
       locks[lid] = RELEASING;
       pthread_mutex_unlock(&mutex);
       cl->call(lock_protocol::release, lid, id, r);
       pthread_mutex_lock(&mutex);
-      //tell other thread to re-acquire lock from server
       locks[lid] = NONE;
+      // tell other thread to re-acquire lock from server, or they'll sleep permanently
       pthread_cond_signal(&cvs[lid]);
       pthread_mutex_unlock(&mutex);
       return result;
   }
-  revoke_flag[lid] = true;
+  revoke_flag[lid] = true; // release lock to server once finish working
   pthread_mutex_unlock(&mutex);
-  return rlock_protocol::RETRY;
+  return rlock_protocol::RETRY; // lock releasing unsuccessfully
 }
 
 rlock_protocol::status
@@ -125,9 +128,9 @@ lock_client_cache::retry_handler(lock_protocol::lockid_t lid,
 {
   int result = rlock_protocol::OK;
   // Your lab2 part3 code goes here
-  tprintf("Retrying lock %d by thread %d\n", lid, pthread_self());
+  //tprintf("Retrying lock %d by thread %d\n", lid, pthread_self());
   pthread_mutex_lock(&mutex);
-  // Here To Add
+  // lock granted
   if (locks[lid] == ACQUIRING) {
       locks[lid] = LOCKED;
       pthread_cond_signal(&cvs[lid]);
