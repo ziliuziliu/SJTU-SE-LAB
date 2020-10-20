@@ -214,8 +214,8 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
   int block_cnt=0, size_left;
   *size = size_left = ino->size;
   printf("size: %d\n",ino->size);
-  for (int i=0;i<=32;i++) {
-    if (i!=32) {
+  for (int i=0;i<=100;i++) {
+    if (i!=100) {
       bm->read_block(ino->blocks[i], rv+block_cnt*BLOCK_SIZE);
       block_cnt++;
       size_left -= BLOCK_SIZE;
@@ -257,8 +257,8 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
 
   // free old block
   int old_size = ino->size, size_left = size;
-  for (int i=0;i<=32;i++) {
-    if (i!=32) {
+  for (int i=0;i<=100;i++) {
+    if (i!=100) {
       bm->free_block(ino->blocks[i]);
       old_size -= BLOCK_SIZE;
       if (old_size <= 0) break;
@@ -280,10 +280,16 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
   //allocate and write new block
   int block_cnt = 0;
   ino->size = size;
-  for (int i=0;i<=32;i++) {
-    if (i!=32) {
+  for (int i=0;i<=100;i++) {
+    printf("i = %d\n", i);
+    if (i!=100) {
       ino->blocks[i] = bm->alloc_block();
-      bm->write_block(ino->blocks[i],buf+block_cnt*BLOCK_SIZE);
+      if (size_left < BLOCK_SIZE) {
+         char tail_block[BLOCK_SIZE];
+	 memcpy(tail_block, buf+block_cnt*BLOCK_SIZE, size_left);
+         bm->write_block(ino->blocks[i], tail_block);
+      }
+      else bm->write_block(ino->blocks[i],buf+block_cnt*BLOCK_SIZE);
       block_cnt++;
       size_left -= BLOCK_SIZE;
       if (size_left <= 0) break;
@@ -293,7 +299,12 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
       ino->blocks[i] = bm->alloc_block();
       for (int j=0;j<BLOCK_SIZE;j+=4) {
         blockid_t block_id = bm->alloc_block();
-        bm->write_block(block_id, buf+block_cnt*BLOCK_SIZE);
+        if (size_left < BLOCK_SIZE) {
+            char tail_block[BLOCK_SIZE];
+            memcpy(tail_block, buf+block_cnt*BLOCK_SIZE, size_left);
+            bm->write_block(block_id, tail_block);
+        }
+        else bm->write_block(block_id, buf+block_cnt*BLOCK_SIZE);
         for (int k=j;k<j+4;k++) {
           block_nums[k] = block_id&(0xff);
           block_id >>= 8;
@@ -321,8 +332,12 @@ inode_manager::getattr(uint32_t inum, extent_protocol::attr &a)
    * note: get the attributes of inode inum.
    * you can refer to "struct attr" in extent_protocol.h
    */
+  printf("\tim: getattr %d\n",inum);
   inode *ino = get_inode(inum);
-  if (!ino) return;
+  if (!ino) {
+     a.type = 0;
+     return;
+  }
   a.type = ino->type;
   a.atime = ino->atime;
   a.ctime = ino->ctime;
@@ -341,8 +356,8 @@ inode_manager::remove_file(uint32_t inum)
   printf("\tim: removing file %d\n",inum);
   inode *ino = get_inode(inum);
   int old_size = ino->size;
-  for (int i=0;i<=32;i++) {
-    if (i!=32) {
+  for (int i=0;i<=100;i++) {
+    if (i!=100) {
       bm->free_block(ino->blocks[i]);
       old_size -= BLOCK_SIZE;
       if (old_size <= 0) break;

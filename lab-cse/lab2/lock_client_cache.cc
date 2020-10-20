@@ -130,6 +130,10 @@ lock_client_cache::retry_handler(lock_protocol::lockid_t lid,
   // Your lab2 part3 code goes here
   //tprintf("Retrying lock %d by thread %d\n", lid, pthread_self());
   pthread_mutex_lock(&mutex);
+  if (locks[lid] == NONE) {
+    pthread_mutex_unlock(&mutex);
+    return rlock_protocol::OK;
+  }
   // lock granted
   if (locks[lid] == ACQUIRING) {
       locks[lid] = LOCKED;
