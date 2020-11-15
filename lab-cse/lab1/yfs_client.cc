@@ -193,9 +193,8 @@ yfs_client::addtoparent(inum parent, const char *name, inum child)
     std::map<std::string, yfs_client::inum> dir_pair;
     if (dir_pair_map.count(parent) == 0)
         dir_pair_map[parent] = dir_pair;
-    else dir_pair = dir_pair_map[parent];
     std::string filename = name;
-    dir_pair[filename] = child;
+    dir_pair_map[parent][filename] = child;
     return OK;
 }
 
@@ -277,12 +276,12 @@ yfs_client::mksym(inum parent, const char *name, mode_t mode, inum &ino_out)
 int
 yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out) {
     int r = OK;
-    std::map<std::string, yfs_client::inum> dir_pair = dir_pair_map[parent];
     std::string filename = name;
-    if (dir_pair.count(filename) == 0) found = false;
+    if (dir_pair_map.count(parent) == 0) found = false;
+    else if (dir_pair_map[parent].count(filename) == 0) found = false;
     else {
         found = true;
-        ino_out = dir_pair[filename];
+        ino_out = dir_pair_map[parent][filename];
     }
     return r;
 }
@@ -370,9 +369,8 @@ int yfs_client::unlink(inum parent,const char *name)
 //    buf.erase(filename_pos, end_pos-filename_pos+1);
 //    ec->put(parent, buf);
     std::string filename = name;
-    std::map<std::string, yfs_client::inum> dir_pair = dir_pair_map[parent];
-    yfs_client::inum inum = dir_pair[filename];
-    dir_pair.erase(filename);
+    yfs_client::inum inum = dir_pair_map[parent][filename];
+    dir_pair_map[parent].erase(filename);
     ec->remove(inum);
     return r;
 }
