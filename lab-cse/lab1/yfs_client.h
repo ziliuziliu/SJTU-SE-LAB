@@ -14,6 +14,7 @@ class yfs_client {
 
   typedef unsigned long long inum;
   enum xxstatus { OK, RPCERR, NOENT, IOERR, EXIST };
+  enum filetype { FILE, DIR, SYMLINK };
   typedef int status;
 
   struct fileinfo {
@@ -42,6 +43,7 @@ class yfs_client {
   static std::string filename(inum);
   static inum n2i(std::string);
   std::map<yfs_client::inum, std::map<std::string, yfs_client::inum> > dir_pair_map;
+  std::map<yfs_client::inum, filetype> file_type_map;
 
  public:
   yfs_client();

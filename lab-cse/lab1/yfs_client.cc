@@ -42,18 +42,21 @@ yfs_client::filename(inum inum)
 bool
 yfs_client::isfile(inum inum)
 {
-    extent_protocol::attr a;
-
-    if (ec->getattr(inum, a) != extent_protocol::OK) {
-        printf("error getting attr\n");
-        return false;
-    }
-
-    if (a.type == extent_protocol::T_FILE) {
-        printf("isfile: %lld is a file\n", inum);
-        return true;
-    }
-    printf("isfile: %lld is not a file\n", inum);
+//    extent_protocol::attr a;
+//
+//    if (ec->getattr(inum, a) != extent_protocol::OK) {
+//        printf("error getting attr\n");
+//        return false;
+//    }
+//
+//    if (a.type == extent_protocol::T_FILE) {
+//        printf("isfile: %lld is a file\n", inum);
+//        return true;
+//    }
+//    printf("isfile: %lld is not a file\n", inum);
+//    return false;
+    if (file_type_map.count(inum) == 0) return false;
+    if (file_type_map[inum] == FILE) return true;
     return false;
 }
 /** Your code here for Lab...
@@ -64,36 +67,42 @@ yfs_client::isfile(inum inum)
 bool
 yfs_client::issymlink(inum inum)
 {
-    extent_protocol::attr a;
-
-    if (ec->getattr(inum, a) != extent_protocol::OK) {
-        printf("error getting attr\n");
-        return false;
-    }
-
-    if (a.type == extent_protocol::T_SYMLINK) {
-        printf("isfile: %lld is a symlink\n", inum);
-        return true;
-    }
-    printf("isfile: %lld is not a symlink\n", inum);
+//    extent_protocol::attr a;
+//
+//    if (ec->getattr(inum, a) != extent_protocol::OK) {
+//        printf("error getting attr\n");
+//        return false;
+//    }
+//
+//    if (a.type == extent_protocol::T_SYMLINK) {
+//        printf("isfile: %lld is a symlink\n", inum);
+//        return true;
+//    }
+//    printf("isfile: %lld is not a symlink\n", inum);
+//    return false;
+    if (file_type_map.count(inum) == 0) return false;
+    if (file_type_map[inum] == SYMLINK) return true;
     return false;
 }
 
 bool
 yfs_client::isdir(inum inum)
 {
-    extent_protocol::attr a;
-
-    if (ec->getattr(inum, a) != extent_protocol::OK) {
-        printf("error getting attr\n");
-        return false;
-    }
-
-    if (a.type == extent_protocol::T_DIR) {
-        printf("isfile: %lld is a dir\n", inum);
-        return true;
-    }
-    printf("isfile: %lld is not a dir\n", inum);
+//    extent_protocol::attr a;
+//
+//    if (ec->getattr(inum, a) != extent_protocol::OK) {
+//        printf("error getting attr\n");
+//        return false;
+//    }
+//
+//    if (a.type == extent_protocol::T_DIR) {
+//        printf("isfile: %lld is a dir\n", inum);
+//        return true;
+//    }
+//    printf("isfile: %lld is not a dir\n", inum);
+//    return false;
+    if (file_type_map.count(inum) == 0) return false;
+    if (file_type_map[inum] == DIR) return true;
     return false;
 }
 
@@ -186,10 +195,10 @@ int
 yfs_client::addtoparent(inum parent, const char *name, inum child)
 {
     std::string buf;
-//    ec->get(parent, buf);
+    ec->get(parent, buf);
 //    buf.append(name);buf.append(",");
 //    buf.append(filename(child));buf.append(":");
-//    ec->put(parent, buf);
+    ec->put(parent, buf);
     std::map<std::string, yfs_client::inum> dir_pair;
     if (dir_pair_map.count(parent) == 0)
         dir_pair_map[parent] = dir_pair;
@@ -213,6 +222,7 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
     else {
         ec->create(extent_protocol::T_FILE, ino_out);
         addtoparent(parent, name, ino_out);
+        file_type_map[ino_out] = FILE;
     }
     return r;
 }
@@ -232,6 +242,7 @@ yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
     else {
         ec->create(extent_protocol::T_DIR, ino_out);
         addtoparent(parent, name, ino_out);
+        file_type_map[ino_out] = DIR;
     }
     return r;
 }
@@ -246,6 +257,7 @@ yfs_client::mksym(inum parent, const char *name, mode_t mode, inum &ino_out)
     else {
         ec->create(extent_protocol::T_SYMLINK, ino_out);
         addtoparent(parent, name, ino_out);
+        file_type_map[ino_out] = SYMLINK;
     }
     return r;
 }
@@ -367,14 +379,14 @@ int yfs_client::unlink(inum parent,const char *name)
      * note: you should remove the file using ec->remove,
      * and update the parent directory content.
      */
-//    std::string buf;
-//    ec->get(parent, buf);
+    std::string buf;
+    ec->get(parent, buf);
 //    size_t filename_pos = buf.find(name);
 //    size_t inum_pos = buf.find(",", filename_pos); inum_pos++;
 //    size_t end_pos = buf.find(":", inum_pos);
 //    ec->remove(atoi(buf.substr(inum_pos, end_pos-inum_pos).c_str()));
 //    buf.erase(filename_pos, end_pos-filename_pos+1);
-//    ec->put(parent, buf);
+    ec->put(parent, buf);
     std::string filename = name;
     yfs_client::inum inum = dir_pair_map[parent][filename];
     dir_pair_map[parent].erase(filename);
