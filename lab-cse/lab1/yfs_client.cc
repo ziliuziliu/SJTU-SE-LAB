@@ -209,11 +209,13 @@ yfs_client::setattr(inum ino, size_t size)
     if (file_type_map[ino] == FILE) {
         fileinfo fin;
         fin.mtime = fin.ctime = fin.atime = (unsigned)std::time(0);
+        fin.size = size;
         file_attr_map[ino] = fin;
     }
     else if (file_type_map[ino] == SYMLINK) {
         symlinkinfo sin;
         sin.mtime = sin.ctime = sin.atime = (unsigned) std::time(0);
+        sin.size = size;
         symlink_attr_map[ino] = sin;
     }
     return r;
@@ -232,6 +234,7 @@ yfs_client::addtoparent(inum parent, const char *name, inum child)
     ec->put(parent, buf);
     dirinfo din;
     din.atime = din.mtime = din.ctime = (unsigned) std::time(0);
+    dir_attr_map[parent] = din;
 
     std::map<std::string, yfs_client::inum> dir_pair;
     if (dir_pair_map.count(parent) == 0)
@@ -429,11 +432,13 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
     if (filetype == FILE) {
         fileinfo fin;
         fin.mtime = fin.ctime = fin.atime = (unsigned)std::time(0);
+        fin.size = buf.size();
         file_attr_map[ino] = fin;
     }
     else if (filetype == SYMLINK) {
         symlinkinfo sin;
         sin.mtime = sin.ctime = sin.atime = (unsigned) std::time(0);
+        sin.size = buf.size();
         symlink_attr_map[ino] = sin;
     }
     else {
@@ -485,6 +490,7 @@ int yfs_client::symlink(const char *link, inum parent, const char *name, inum &i
         r = ec->put(ino, std::string(link));
         symlinkinfo sin;
         sin.mtime = sin.ctime = sin.atime = (unsigned) std::time(0);
+        sin.size = strlen(link);
         symlink_attr_map[ino] = sin;
     }
     ino_out = ino;
