@@ -311,7 +311,6 @@ yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
     if (off > buf.size()) data = "";
     else if (off+size > buf.size()) data=buf.substr(off);
     else data=buf.substr(off, size);
-    printf("%s\n",data.c_str());
     return r;
 }
 
@@ -360,7 +359,8 @@ int yfs_client::symlink(const char *link, inum parent, const char *name, inum &i
     inum ino;
     r = mksym(parent, name, 0, ino);
     if (r != EXIST)
-        r = write(ino, length, 0, link, bytes_written);
+        r = ec->put(ino, std::string(link));
+    ino_out = ino;
     return r;
 }
 
