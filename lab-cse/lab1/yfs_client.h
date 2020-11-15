@@ -44,6 +44,9 @@ class yfs_client {
   static inum n2i(std::string);
   std::map<yfs_client::inum, std::map<std::string, yfs_client::inum> > dir_pair_map;
   std::map<yfs_client::inum, filetype> file_type_map;
+  std::map<yfs_client::inum, fileinfo> file_attr_map;
+  std::map<yfs_client::inum, dirinfo> dir_attr_map;
+  std::map<yfs_client::inum, symlinkinfo> symlink_attr_map;
 
  public:
   yfs_client();
