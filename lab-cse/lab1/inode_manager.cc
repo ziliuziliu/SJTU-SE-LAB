@@ -136,7 +136,6 @@ inode_manager::free_inode(uint32_t inum)
    * note: you need to check if the inode is already a freed one;
    * if not, clear it, and remember to write back to disk.
    */
-  printf("\tim: free inode %d\n",inum);
   inode *ino = get_inode(inum);
   if (!ino || !(ino->type)) return;
   ino->type = 0;
@@ -153,8 +152,6 @@ inode_manager::get_inode(uint32_t inum)
 {
   struct inode *ino, *ino_disk;
   char buf[BLOCK_SIZE];
-
-  printf("\tim: get_inode %d\n", inum);
 
   if (inum < 0 || inum >= INODE_NUM) {
     printf("\tim: inum out of range\n");
@@ -182,7 +179,6 @@ inode_manager::put_inode(uint32_t inum, struct inode *ino)
   char buf[BLOCK_SIZE];
   struct inode *ino_disk;
 
-  printf("\tim: put_inode %d\n", inum);
   if (ino == NULL)
     return;
 
@@ -204,12 +200,10 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
    * note: read blocks related to inode number inum,
    * and copy them to buf_out
    */
-  printf("\tim: reading file %d\n",inum);  
   inode *ino = get_inode(inum);
   char *rv = (char *)malloc(200050);
   int block_cnt=0, size_left;
   *size = size_left = ino->size;
-  printf("size: %d\n",ino->size);
   for (int i=0;i<=32;i++) {
     if (i!=32) {
       bm->read_block(ino->blocks[i], rv+block_cnt*BLOCK_SIZE);
@@ -248,7 +242,6 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
    * you need to consider the situation when the size of buf 
    * is larger or smaller than the size of original inode
    */
-  printf("\tim: writing file %d\n",inum);
   inode *ino = get_inode(inum);
 
   // free old block
@@ -334,7 +327,6 @@ inode_manager::remove_file(uint32_t inum)
    * your code goes here
    * note: you need to consider about both the data block and inode of the file
    */
-  printf("\tim: removing file %d\n",inum);
   inode *ino = get_inode(inum);
   int old_size = ino->size;
   for (int i=0;i<=32;i++) {

@@ -295,23 +295,30 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
      * note: you should parse the dirctory content using your defined format,
      * and push the dirents to the list.
      */
-    std::string buf;
-    ec->get(dir, buf);
-    int start = 0, end = -1, len = buf.length();
-    for (;;) {
-        std::string name, inum_str;
-        inum inum;
-        if (start >= len) break;
-        end = buf.find(",",start);
-        name = buf.substr(start, end - start);
-        start = end + 1;
-        end = buf.find(":",start);
-        inum_str = buf.substr(start, end - start);
-        inum = n2i(inum_str);
+//    std::string buf;
+//    ec->get(dir, buf);
+//    int start = 0, end = -1, len = buf.length();
+//    for (;;) {
+//        std::string name, inum_str;
+//        inum inum;
+//        if (start >= len) break;
+//        end = buf.find(",",start);
+//        name = buf.substr(start, end - start);
+//        start = end + 1;
+//        end = buf.find(":",start);
+//        inum_str = buf.substr(start, end - start);
+//        inum = n2i(inum_str);
+//        dirent entry;
+//        entry.name = name;entry.inum = inum;
+//        list.push_back(entry);
+//        start = end + 1;
+//    }
+    if (dir_pair_map.count(dir) == 0) return r;
+    std::map<std::string, yfs_client::inum>::iterator it;
+    for (it=dir_pair_map[dir].begin(); it!=dir_pair_map[dir].end(); it++) {
         dirent entry;
-        entry.name = name;entry.inum = inum;
+        entry.name = it->first; entry.inum = it->second;
         list.push_back(entry);
-        start = end + 1;
     }
     return r;
 }
