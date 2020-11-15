@@ -186,10 +186,16 @@ int
 yfs_client::addtoparent(inum parent, const char *name, inum child)
 {
     std::string buf;
-    ec->get(parent, buf);
-    buf.append(name);buf.append(",");
-    buf.append(filename(child));buf.append(":");
-    ec->put(parent, buf);
+//    ec->get(parent, buf);
+//    buf.append(name);buf.append(",");
+//    buf.append(filename(child));buf.append(":");
+//    ec->put(parent, buf);
+    std::map<std::string, yfs_client::inum> dir_pair;
+    if (dir_pair_map.count(parent) == 0)
+        dir_pair_map[parent] = dir_pair;
+    else dir_pair = dir_pair_map[parent];
+    std::string filename = name;
+    dir_pair[filename] = child;
     return OK;
 }
 
@@ -245,26 +251,39 @@ yfs_client::mksym(inum parent, const char *name, mode_t mode, inum &ino_out)
     return r;
 }
 
+//int
+//yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
+//{
+//    int r = OK;
+//    /*
+//     * your code goes here.
+//     * note: lookup file from parent dir according to name;
+//     * you should design the format of directory content.
+//     */
+//    // name,inum:name,inum:name,inum:name,inum: ......
+//    std::list<dirent> list;
+//    readdir(parent, list);
+//    for (std::list<dirent>::iterator it=list.begin(); it!=list.end(); ++it) {
+//        if (it->name.compare(name) == 0) {
+//            found = true;
+//            ino_out = it->inum;
+//            return r;
+//        }
+//    }
+//    found = false;
+//    return r;
+//}
+
 int
-yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
-{
+yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out) {
     int r = OK;
-    /*
-     * your code goes here.
-     * note: lookup file from parent dir according to name;
-     * you should design the format of directory content.
-     */
-    // name,inum:name,inum:name,inum:name,inum: ......
-    std::list<dirent> list;
-    readdir(parent, list);
-    for (std::list<dirent>::iterator it=list.begin(); it!=list.end(); ++it) {
-        if (it->name.compare(name) == 0) {
-            found = true;
-            ino_out = it->inum;
-            return r;
-        }
+    std::map<std::string, yfs_client::inum> dir_pair = dir_pair_map[parent];
+    std::string filename = name;
+    if (dir_pair.count(filename) == 0) found = false;
+    else {
+        found = true;
+        ino_out = dir_pair[filename];
     }
-    found = false;
     return r;
 }
 
@@ -342,14 +361,19 @@ int yfs_client::unlink(inum parent,const char *name)
      * note: you should remove the file using ec->remove,
      * and update the parent directory content.
      */
-    std::string buf;
-    ec->get(parent, buf);
-    size_t filename_pos = buf.find(name);
-    size_t inum_pos = buf.find(",", filename_pos); inum_pos++;
-    size_t end_pos = buf.find(":", inum_pos);
-    ec->remove(atoi(buf.substr(inum_pos, end_pos-inum_pos).c_str()));
-    buf.erase(filename_pos, end_pos-filename_pos+1);
-    ec->put(parent, buf);
+//    std::string buf;
+//    ec->get(parent, buf);
+//    size_t filename_pos = buf.find(name);
+//    size_t inum_pos = buf.find(",", filename_pos); inum_pos++;
+//    size_t end_pos = buf.find(":", inum_pos);
+//    ec->remove(atoi(buf.substr(inum_pos, end_pos-inum_pos).c_str()));
+//    buf.erase(filename_pos, end_pos-filename_pos+1);
+//    ec->put(parent, buf);
+    std::string filename = name;
+    std::map<std::string, yfs_client::inum> dir_pair = dir_pair_map[parent];
+    yfs_client::inum inum = dir_pair[filename];
+    dir_pair.erase(filename);
+    ec->remove(inum);
     return r;
 }
 
