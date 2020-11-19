@@ -31,8 +31,8 @@ ifeq ($(LAB1GE),1)
 endif
 LDLIBS += $(shell test -f `gcc -print-file-name=librt.so` && echo -lrt)
 LDLIBS += $(shell test -f `gcc -print-file-name=libdl.so` && echo -ldl)
-CC = g++
-CXX = g++
+CC = g++ -O2
+CXX = g++ -O2
 
 lab:  lab$(LAB)
 lab1: part1_tester yfs_client

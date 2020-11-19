@@ -32,10 +32,16 @@ typedef struct superblock {
   uint32_t ninodes;
 } superblock_t;
 
+struct block_node {
+  uint32_t id;
+  block_node *next;
+  block_node (uint32_t id):id(id) {}
+};
 class block_manager {
  private:
   disk *d;
-  std::map <uint32_t, int> using_blocks;
+  block_node *head, *tail;
+ int using_blocks[100005];
  public:
   block_manager();
   struct superblock sb;
@@ -76,10 +82,19 @@ typedef struct inode {
   unsigned int mtime;
   unsigned int ctime;
   blockid_t blocks[NDIRECT+1];   // Data block addresses
+  int block_cnt;
 } inode_t;
-
+struct inode_node {
+  int inum;
+  inode_node *next;
+  inode_node(int inum):inum(inum) {}
+};
 class inode_manager {
  private:
+  //inode inode_pool[1000050];
+  //int inode_head;
+  //int inode_map[1000050];
+  inode_node *head, *tail;
   block_manager *bm;
   struct inode* get_inode(uint32_t inum);
   void put_inode(uint32_t inum, struct inode *ino);

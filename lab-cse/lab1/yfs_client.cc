@@ -9,6 +9,18 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctime>
+#include <linux/types.h>
+
+__u64 rdtsc2()
+{
+        __u32 lo,hi;
+
+        __asm__ __volatile__
+        (
+         "rdtsc":"=a"(lo),"=d"(hi)
+        );
+        return (__u64)hi<<32|lo;
+}
 
 yfs_client::yfs_client()
 {
@@ -22,8 +34,8 @@ yfs_client::yfs_client()
 yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
 {
     ec = new extent_client();
-    if (ec->put(1, "") != extent_protocol::OK)
-        printf("error init root dir\n"); // XYB: init root dir
+    if (ec->put(1, "") != extent_protocol::OK) ;
+        //printf("error init root dir\n"); // XYB: init root dir
 }
 
 yfs_client::inum
@@ -59,7 +71,7 @@ yfs_client::isfile(inum inum)
 //    }
 //    printf("isfile: %lld is not a file\n", inum);
 //    return false;
-    if (file_type_map.count(inum) == 0) return false;
+    if (file_type_map[inum] == 0) return false;
     if (file_type_map[inum] == FILE) return true;
     return false;
 }
@@ -84,7 +96,7 @@ yfs_client::issymlink(inum inum)
 //    }
 //    printf("isfile: %lld is not a symlink\n", inum);
 //    return false;
-    if (file_type_map.count(inum) == 0) return false;
+    if (file_type_map[inum] == 0) return false;
     if (file_type_map[inum] == SYMLINK) return true;
     return false;
 }
@@ -105,7 +117,7 @@ yfs_client::isdir(inum inum)
 //    }
 //    printf("isfile: %lld is not a dir\n", inum);
 //    return false;
-    if (file_type_map.count(inum) == 0) return false;
+    if (file_type_map[inum] == 0) return false;
     if (file_type_map[inum] == DIR) return true;
     return false;
 }
@@ -226,19 +238,19 @@ yfs_client::addtoparent(inum parent, const char *name, inum child)
 {
     std::string buf;
 
-    ec->get(parent, buf);
+    //ec->get(parent, buf);
     dir_attr_map[parent].atime = (unsigned)std::time(0);
 
 //    buf.append(name);buf.append(",");
 //    buf.append(filename(child));buf.append(":");
-    ec->put(parent, buf);
+    //ec->put(parent, buf);
     dirinfo din;
     din.atime = din.mtime = din.ctime = (unsigned) std::time(0);
     dir_attr_map[parent] = din;
 
-    std::map<std::string, yfs_client::inum> dir_pair;
-    if (dir_pair_map.count(parent) == 0)
-        dir_pair_map[parent] = dir_pair;
+    //std::map<std::string, yfs_client::inum> dir_pair;
+    //if (dir_pair_map.count(parent) == 0)
+        //dir_pair_map[parent] = dir_pair;
     std::string filename = name;
     dir_pair_map[parent][filename] = child;
     return OK;
@@ -247,6 +259,8 @@ yfs_client::addtoparent(inum parent, const char *name, inum child)
 int
 yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
 {
+    __u64 begin, end;
+    begin = rdtsc2();
     int r = OK;
     /*
      * your code goes here.
@@ -264,6 +278,8 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
         fin.size = 0; fin.mtime = fin.ctime = fin.atime = (unsigned)std::time(0);
         file_attr_map[ino_out] = fin;
     }
+    end = rdtsc2();
+    printf("%llu cycles for create, ", end-begin);
     return r;
 }
 
@@ -335,8 +351,8 @@ int
 yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out) {
     int r = OK;
     std::string filename = name;
-    if (dir_pair_map.count(parent) == 0) found = false;
-    else if (dir_pair_map[parent].count(filename) == 0) found = false;
+    //if (dir_pair_map.count(parent) == 0) found = false;
+    if (dir_pair_map[parent].count(filename) == 0) found = false;
     else {
         found = true;
         ino_out = dir_pair_map[parent][filename];
@@ -371,7 +387,7 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
 //        list.push_back(entry);
 //        start = end + 1;
 //    }
-    if (dir_pair_map.count(dir) == 0) return r;
+    //if (dir_pair_map.count(dir) == 0) return r;
 
     dir_attr_map[dir].atime = (unsigned)std::time(0);
 
@@ -416,17 +432,21 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
      * note: write using ec->put().
      * when off > length of original file, fill the holes with '\0'.
      */
+    __u64 begin, end;
+    begin = rdtsc2();
     std::string buf;
 
     ec->get(ino, buf);
+
     filetype filetype = file_type_map[ino];
     if (filetype == FILE) file_attr_map[ino].atime = (unsigned)std::time(0);
     else if (filetype == DIR) dir_attr_map[ino].atime = (unsigned)std::time(0);
     else symlink_attr_map[ino].atime = (unsigned)std::time(0);
 
     if (off+size > buf.size()) buf.resize(off+size);
-    for (int i=off;i<off+size;i++)
-      buf[i]=data[i-off];
+    //for (int i=off;i<off+size;i++)
+    //  buf[i]=data[i-off];
+    std::copy(data, data+size, (char *)buf.c_str()+off);
 
     ec->put(ino, buf);
     if (filetype == FILE) {
@@ -448,11 +468,15 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
     }
 
     bytes_written = size;
+    end = rdtsc2();
+    printf("%llu cycles for write, ", end-begin);
     return r;
 }
 
 int yfs_client::unlink(inum parent,const char *name)
 {
+    __u64 begin, end;
+    begin = rdtsc2();
     int r = OK;
     /*
      * your code goes here.
@@ -461,7 +485,7 @@ int yfs_client::unlink(inum parent,const char *name)
      */
     std::string buf;
 
-    ec->get(parent, buf);
+    //ec->get(parent, buf);
     dir_attr_map[parent].atime = (unsigned)std::time(0);
 
 //    size_t filename_pos = buf.find(name);
@@ -469,7 +493,7 @@ int yfs_client::unlink(inum parent,const char *name)
 //    size_t end_pos = buf.find(":", inum_pos);
 //    ec->remove(atoi(buf.substr(inum_pos, end_pos-inum_pos).c_str()));
 //    buf.erase(filename_pos, end_pos-filename_pos+1);
-    ec->put(parent, buf);
+    //ec->put(parent, buf);
     dirinfo din;
     din.mtime = din.ctime = din.atime = (unsigned) std::time(0);
     dir_attr_map[parent] = din;
@@ -477,7 +501,10 @@ int yfs_client::unlink(inum parent,const char *name)
     std::string filename = name;
     yfs_client::inum inum = dir_pair_map[parent][filename];
     dir_pair_map[parent].erase(filename);
+    end = rdtsc2();
     ec->remove(inum);
+
+    printf("%llu cycles for unlink\n\n", end-begin);
     return r;
 }
 
