@@ -11,7 +11,7 @@
 #include <ctime>
 #include <linux/types.h>
 
-__u64 rdtsc2()
+/*__u64 rdtsc2()
 {
         __u32 lo,hi;
 
@@ -20,7 +20,7 @@ __u64 rdtsc2()
          "rdtsc":"=a"(lo),"=d"(hi)
         );
         return (__u64)hi<<32|lo;
-}
+}*/
 
 yfs_client::yfs_client()
 {
@@ -259,8 +259,8 @@ yfs_client::addtoparent(inum parent, const char *name, inum child)
 int
 yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
 {
-    __u64 begin, end;
-    begin = rdtsc2();
+    //__u64 begin, end;
+    //begin = rdtsc2();
     int r = OK;
     /*
      * your code goes here.
@@ -278,8 +278,8 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
         fin.size = 0; fin.mtime = fin.ctime = fin.atime = (unsigned)std::time(0);
         file_attr_map[ino_out] = fin;
     }
-    end = rdtsc2();
-    printf("%llu cycles for create, ", end-begin);
+    //end = rdtsc2();
+    //printf("%llu cycles for create, ", end-begin);
     return r;
 }
 
@@ -416,7 +416,7 @@ yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
     else if (filetype == DIR) dir_attr_map[ino].atime = (unsigned)std::time(0);
     else symlink_attr_map[ino].atime = (unsigned)std::time(0);
 
-    if (off > buf.size()) data = "";
+    if (off > (off_t)buf.size()) data = "";
     else if (off+size > buf.size()) data=buf.substr(off);
     else data=buf.substr(off, size);
     return r;
@@ -432,8 +432,8 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
      * note: write using ec->put().
      * when off > length of original file, fill the holes with '\0'.
      */
-    __u64 begin, end;
-    begin = rdtsc2();
+    //__u64 begin, end;
+    //begin = rdtsc2();
     std::string buf;
 
     ec->get(ino, buf);
@@ -468,15 +468,15 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
     }
 
     bytes_written = size;
-    end = rdtsc2();
-    printf("%llu cycles for write, ", end-begin);
+    //end = rdtsc2();
+    //printf("%llu cycles for write, ", end-begin);
     return r;
 }
 
 int yfs_client::unlink(inum parent,const char *name)
 {
-    __u64 begin, end;
-    begin = rdtsc2();
+    //__u64 begin, end;
+    //begin = rdtsc2();
     int r = OK;
     /*
      * your code goes here.
@@ -501,16 +501,16 @@ int yfs_client::unlink(inum parent,const char *name)
     std::string filename = name;
     yfs_client::inum inum = dir_pair_map[parent][filename];
     dir_pair_map[parent].erase(filename);
-    end = rdtsc2();
+    //end = rdtsc2();
     ec->remove(inum);
 
-    printf("%llu cycles for unlink\n\n", end-begin);
+    //printf("%llu cycles for unlink\n\n", end-begin);
     return r;
 }
 
 int yfs_client::symlink(const char *link, inum parent, const char *name, inum &ino_out) {
     int r = OK;
-    size_t length = strlen(link), bytes_written;
+    //size_t length = strlen(link), bytes_written;
     inum ino;
     r = mksym(parent, name, 0, ino);
     if (r != EXIST) {

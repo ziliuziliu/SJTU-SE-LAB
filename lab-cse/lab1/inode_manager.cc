@@ -159,12 +159,12 @@ inode_manager::alloc_inode(uint32_t type)
       //inode_map[i]=1;
       int inum = head->inum;
       head = head->next;
-      unsigned int cur_time = (unsigned)std::time(0);
-      inode *ino = new inode{type, 0, cur_time, cur_time, cur_time, {}, 0};
+      //unsigned int cur_time = (unsigned)std::time(0);
+      inode *ino = new inode();
       //inode *ino = inode_pool + inode_head; 
-      //ino->type = type;
-      //ino->size = 0;
-      //ino->atime = ino->ctime = ino->mtime = (unsigned)std::time(0);
+      ino->type = type;
+      ino->size = 0;
+      ino->atime = ino->ctime = ino->mtime = (unsigned)std::time(0);
       //inode_head++;
       put_inode(inum, ino);
       return inum;
@@ -293,7 +293,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
   inode *ino = get_inode(inum);
 
   // ifree old block
-  int old_size = ino->size, size_left = size;
+  int size_left = size;
   /*for (int i=0;i<=32;i++) {
     if (i!=32) {
       bm->free_block(ino->blocks[i]);
