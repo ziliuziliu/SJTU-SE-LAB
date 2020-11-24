@@ -3,6 +3,7 @@
 
 //#define DEBUG 1
 
+
 ydb_server::ydb_server(std::string extent_dst, std::string lock_dst) {
 	ec = new extent_client(extent_dst);
 	lc = new lock_client(lock_dst);
@@ -37,16 +38,29 @@ ydb_protocol::status ydb_server::transaction_abort(ydb_protocol::transaction_id 
 
 ydb_protocol::status ydb_server::get(ydb_protocol::transaction_id id, const std::string key, std::string &out_value) {
 	// lab3: your code here
+	if (mp.count(key) != 1) return ydb_protocol::TRANSIDINV;
+    ec->get(mp[key], out_value);
 	return ydb_protocol::OK;
 }
 
 ydb_protocol::status ydb_server::set(ydb_protocol::transaction_id id, const std::string key, const std::string value, int &) {
 	// lab3: your code here
+	if (mp.count(key)) ec->put(mp[key], value);
+	else {
+        for (int i = 2; i < 1024; i++) {
+            if (vis[i]) continue;
+            vis[i] = true;
+            mp[key] = i;
+            ec->put(mp[key], value);
+            break;
+        }
+    }
 	return ydb_protocol::OK;
 }
 
 ydb_protocol::status ydb_server::del(ydb_protocol::transaction_id id, const std::string key, int &) {
 	// lab3: your code here
+	if (mp.count(key) != 1) return ydb_protocol::TRANSIDINV;
+	vis[mp[key]] = false; mp.erase(key);
 	return ydb_protocol::OK;
 }
-
