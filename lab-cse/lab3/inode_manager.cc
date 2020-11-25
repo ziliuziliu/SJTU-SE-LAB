@@ -156,7 +156,6 @@ inode_manager::get_inode(uint32_t inum)
   char buf[BLOCK_SIZE];
 
   if (inum < 0 || inum >= INODE_NUM) {
-    printf("\tim: inum out of range\n");
     return NULL;
   }
 
@@ -165,7 +164,6 @@ inode_manager::get_inode(uint32_t inum)
 
   ino_disk = (struct inode*)buf + inum%IPB;
   if (ino_disk->type == 0) {
-    printf("\tim: inode not exist\n");
     return NULL;
   }
 
