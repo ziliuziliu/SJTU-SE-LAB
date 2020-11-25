@@ -155,8 +155,6 @@ inode_manager::get_inode(uint32_t inum)
   struct inode *ino, *ino_disk;
   char buf[BLOCK_SIZE];
 
-  printf("\tim: get_inode %d\n", inum);
-
   if (inum < 0 || inum >= INODE_NUM) {
     printf("\tim: inum out of range\n");
     return NULL;
@@ -183,7 +181,6 @@ inode_manager::put_inode(uint32_t inum, struct inode *ino)
   char buf[BLOCK_SIZE];
   struct inode *ino_disk;
 
-  printf("\tim: put_inode %d\n", inum);
   if (ino == NULL)
     return;
 
