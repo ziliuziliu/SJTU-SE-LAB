@@ -10,7 +10,7 @@ timeout 30s ./test-lab3-durability 4772
 
 pkill -9 ydb_server
 (./ydb_server $1 4772 2772 3772 >ydb_server.log &)
-sleep 1
+sleep 3
 
 rm tmp.tt 2>/dev/null
 timeout 30s ./test-lab3-durability 4772 RESTART >tmp.tt
@@ -22,4 +22,3 @@ else
 	echo "[^_^] Pass test-lab3-durability"
 fi
 rm tmp.tt
-

@@ -23,6 +23,7 @@ ydb_server::~ydb_server() {
 
 ydb_protocol::status ydb_server::transaction_begin(int, ydb_protocol::transaction_id &out_id) {    // the first arg is not used, it is just a hack to the rpc lib
 	// no imply, just return OK
+	out_id = 1;
 	return ydb_protocol::OK;
 }
 
@@ -38,13 +39,15 @@ ydb_protocol::status ydb_server::transaction_abort(ydb_protocol::transaction_id 
 
 ydb_protocol::status ydb_server::get(ydb_protocol::transaction_id id, const std::string key, std::string &out_value) {
 	// lab3: your code here
-	if (mp.count(key) != 1) return ydb_protocol::TRANSIDINV;
+	std::cout << "GET " << key << " " << out_value << std::endl;
+	if (mp.count(key) != 1) return ydb_protocol::KEYINV;
     ec->get(mp[key], out_value);
 	return ydb_protocol::OK;
 }
 
 ydb_protocol::status ydb_server::set(ydb_protocol::transaction_id id, const std::string key, const std::string value, int &) {
 	// lab3: your code here
+	std::cout << "SET " << key << " " << value << std::endl;
 	if (mp.count(key)) ec->put(mp[key], value);
 	else {
         for (int i = 2; i < 1024; i++) {
@@ -60,6 +63,7 @@ ydb_protocol::status ydb_server::set(ydb_protocol::transaction_id id, const std:
 
 ydb_protocol::status ydb_server::del(ydb_protocol::transaction_id id, const std::string key, int &) {
 	// lab3: your code here
+	std::cout << "DEL " << key << std::endl;
 	if (mp.count(key) != 1) return ydb_protocol::TRANSIDINV;
 	vis[mp[key]] = false; mp.erase(key);
 	return ydb_protocol::OK;

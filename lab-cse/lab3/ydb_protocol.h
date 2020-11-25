@@ -8,7 +8,7 @@
 class ydb_protocol {
 public:
 	typedef int status;
-	enum xxstatus { OK = 0, RPCERR, ABORT, TRANSIDINV };
+	enum xxstatus { OK = 0, RPCERR, ABORT, TRANSIDINV, KEYINV };
 	
 	typedef int transaction_id;
 	

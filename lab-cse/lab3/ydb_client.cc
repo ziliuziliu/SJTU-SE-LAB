@@ -21,7 +21,9 @@ void ydb_client::transaction_begin() {
 	if (this->current_transaction != INVALID_TRANSID) {
 		throw ydb_protocol::TRANSIDINV;
 	}
+	printf("Here 1.\n");
 	ydb_protocol::status ret = cl->call(ydb_protocol::transaction_begin, a, transid);
+	printf("Here 2.\n");
 	if (ret != ydb_protocol::OK) {
 		this->current_transaction = INVALID_TRANSID;
 		throw ret;

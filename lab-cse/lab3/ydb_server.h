@@ -17,7 +17,7 @@ protected:
 	extent_client *ec;
 	lock_client *lc;
 	bool vis[1050];
-	map <string, int> mp;
+	std::map <std::string, int> mp;
 
 public:
 	ydb_server(std::string, std::string);
