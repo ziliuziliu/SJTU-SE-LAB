@@ -52,6 +52,8 @@ ydb_protocol::status ydb_server_2pl::transaction_abort(ydb_protocol::transaction
 	    pthread_mutex_unlock(&ks_mutex);
 	    return ydb_protocol::TRANSIDINV;
 	}
+	for (std::map<int, std::string>::iterator it=kv_store[id].begin(); it!=kv_store[id].end(); it++)
+	    lc->release(it->first);
 	kv_store.erase(id);
 	pthread_mutex_unlock(&ks_mutex);
 	return ydb_protocol::OK;
