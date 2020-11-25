@@ -59,7 +59,6 @@ int main(int argc, char *argv[]) {
 	else if (transaction_type == "NONE") {    // no transaction support
 		ydb_server ls(port_ec, port_lc);
 		server.reg(ydb_protocol::transaction_begin, &ls, &ydb_server::transaction_begin);
-		printf("%d registered\n", ydb_protocol::transaction_begin);
 		server.reg(ydb_protocol::transaction_commit, &ls, &ydb_server::transaction_commit);
 		server.reg(ydb_protocol::transaction_abort, &ls, &ydb_server::transaction_abort);
 		server.reg(ydb_protocol::get, &ls, &ydb_server::get);

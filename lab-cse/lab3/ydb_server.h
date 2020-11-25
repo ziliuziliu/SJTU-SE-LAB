@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <sys/time.h>
 #include "extent_client.h"
 #include "lock_protocol.h"
 #include "lock_client.h"

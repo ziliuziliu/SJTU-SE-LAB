@@ -15,6 +15,7 @@ using namespace std;
 	} \
 } while(0)
 
+/*
 #define CHECK_TRANS_EXCEPTION(express, expected_exception, errmsg) do { \
 	bool exception_occurred = false; \
 	try { \
@@ -25,7 +26,7 @@ using namespace std;
 	} \
 		CHECK(exception_occurred, errmsg); \
 } while(0)
-
+*/
 
 int global_err_count = 0;
 
@@ -33,125 +34,144 @@ volatile int global_counter = 0;
 
 string global_ydb_server_port;
 
+bool t0_aborted = false;
+bool t1_aborted = false;
+bool t2_aborted = false;
+
 void *start_thread0(void *arg_) {
-	(void)arg_;
+    (void)arg_;
 
-	string r;
-	ydb_client y((global_ydb_server_port));
+    string r;
+    ydb_client y((global_ydb_server_port));
 
-	y.transaction_begin();
-	y.set("a", "0100");
-	__sync_fetch_and_add(&global_counter, 1); while(global_counter < 3);
-	y.set("b", "0200");
-	while(global_counter < 4);
-	y.transaction_commit();
-	
-	__sync_fetch_and_add(&global_counter, 1); while(global_counter < 7);
+    y.transaction_begin();
+    y.set("a", "0100");
 
-	y.transaction_begin();
-	r = y.get("a");
-		CHECK(r == "0100", "tread0 check 1 error");
-	r = y.get("b");
-		CHECK(r == "0200", "tread0 check 2 error");
-	r = y.get("c");
-		CHECK(r == "1300", "tread0 check 3 error");
-	y.transaction_commit();
-	
-	return NULL;
+    __sync_fetch_and_add(&global_counter, 1); while(global_counter < 3);
+
+    try {
+        y.set("b", "0200");
+        y.transaction_commit();
+    }
+    catch(ydb_protocol::status e) {
+        CHECK(e == ydb_protocol::ABORT, "check t0 abort error");
+        t0_aborted = true;
+    }
+
+    return NULL;
 }
 
 void *start_thread1(void *arg_) {
-	(void)arg_;
-	
-	string r;
-	ydb_client y((global_ydb_server_port));
+    (void)arg_;
 
-	y.transaction_begin();
-	y.set("b", "1200");
-	__sync_fetch_and_add(&global_counter, 1); while(global_counter < 3);
-	y.set("c", "1300");
-	while(global_counter < 4);
-	y.transaction_commit();
-	
-	__sync_fetch_and_add(&global_counter, 1); while(global_counter < 7);
+    string r;
+    ydb_client y((global_ydb_server_port));
 
-	y.transaction_begin();
-	r = y.get("a");
-		CHECK(r == "0100", "tread1 check 1 error");
-	r = y.get("b");
-		CHECK(r == "0200", "tread1 check 2 error");
-	r = y.get("c");
-		CHECK(r == "1300", "tread1 check 3 error");
-	y.transaction_commit();
+    y.transaction_begin();
+    y.set("b", "1200");
 
-	return NULL;
+    __sync_fetch_and_add(&global_counter, 1); while(global_counter < 3);
+
+    try {
+        y.set("c", "1300");
+        y.transaction_commit();
+    }
+    catch(ydb_protocol::status e) {
+        CHECK(e == ydb_protocol::ABORT, "check t1 abort error");
+        t1_aborted = true;
+    }
+
+    return NULL;
 }
 
 void *start_thread2(void *arg_) {
-	(void)arg_;
-	
-	string r;
-	ydb_client y((global_ydb_server_port));
+    (void)arg_;
 
-	y.transaction_begin();
-	y.set("c", "2300");
-	__sync_fetch_and_add(&global_counter, 1); while(global_counter < 3);
-	usleep(1000000/10);    // wait trans0 and trans1 getting in lock
-	CHECK_TRANS_EXCEPTION(y.set("a", "2100"), ydb_protocol::ABORT, "thread2 check abort error");
-	__sync_fetch_and_add(&global_counter, 1);
-	// it is already aborted, so no need to y.transaction_commit();
-	// now global_counter should be 4
+    string r;
+    ydb_client y((global_ydb_server_port));
 
-	__sync_fetch_and_add(&global_counter, 1); while(global_counter < 7);
+    y.transaction_begin();
+    y.set("c", "2300");
 
-	y.transaction_begin();
-	r = y.get("a");
-		CHECK(r == "0100", "tread2 check 1 error");
-	r = y.get("b");
-		CHECK(r == "0200", "tread2 check 2 error");
-	r = y.get("c");
-		CHECK(r == "1300", "tread2 check 3 error");
-	y.transaction_commit();
+    __sync_fetch_and_add(&global_counter, 1); while(global_counter < 3);
 
-	return NULL;
+    try {
+        y.set("a", "2100");
+        y.transaction_commit();
+    }
+    catch(ydb_protocol::status e) {
+        CHECK(e == ydb_protocol::ABORT, "check t2 abort error");
+        t2_aborted = true;
+    }
+
+    return NULL;
 }
 
 
 int main(int argc, char **argv) {
-	if (argc <= 1) {
-		printf("Usage: %s <ydb_server_listen_port>\n", argv[0]);
-		return 0;
-	}
+    if (argc <= 1) {
+        printf("Usage: %s <ydb_server_listen_port>\n", argv[0]);
+        return 0;
+    }
 
-	global_ydb_server_port = string(argv[1]);
+    global_ydb_server_port = string(argv[1]);
 
-	ydb_client y((global_ydb_server_port));
+    ydb_client y((global_ydb_server_port));
 
-	y.transaction_begin();
-	y.set("a", "100");
-	y.set("b", "200");
-	y.set("c", "300");
-	y.transaction_commit();
+    y.transaction_begin();
+    y.set("a", "100");
+    y.set("b", "200");
+    y.set("c", "300");
+    y.transaction_commit();
 
-	pthread_t t0;
-	pthread_t t1;
-	pthread_t t2;
+    pthread_t t0;
+    pthread_t t1;
+    pthread_t t2;
 
-	pthread_create(&t0, NULL, start_thread0, NULL);
-	pthread_create(&t1, NULL, start_thread1, NULL);
-	pthread_create(&t2, NULL, start_thread2, NULL);
+    pthread_create(&t0, NULL, start_thread0, NULL);
+    pthread_create(&t1, NULL, start_thread1, NULL);
+    pthread_create(&t2, NULL, start_thread2, NULL);
 
-	pthread_join(t0, NULL);
-	pthread_join(t1, NULL);
-	pthread_join(t2, NULL);
+    pthread_join(t0, NULL);
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
 
-	if (global_err_count != 0) {
-		printf("[x_x] Fail test-lab3-part2-b\n");
-	}
-	else {
-		printf("[^_^] Pass test-lab3-part2-b\n");
-	}
+    y.transaction_begin();
+    string r1 = y.get("a");
+    string r2 = y.get("b");
+    string r3 = y.get("c");
+    y.transaction_commit();
 
-	return 0;
+    // we should not assume which thread to abort (the old version of this test assumes the last transaction to abort, which is wrong)
+    // but, we can know there is one and should only one transaction aborted
+
+    //printf("%d %d %d\n", t0_aborted, t1_aborted, t2_aborted);
+
+    if (t0_aborted && !t1_aborted && !t2_aborted) {    // only transaction 0 aborted
+        CHECK(r1 == "2100", "t0 abort check a error");
+        CHECK(r2 == "1200", "t0 abort check b error");
+        CHECK(r3 == "1300", "t0 abort check c error");
+    }
+    else if (!t0_aborted && t1_aborted && !t2_aborted) {    // only transaction 1 aborted
+        CHECK(r1 == "2100", "t1 abort check a error");
+        CHECK(r2 == "0200", "t1 abort check b error");
+        CHECK(r3 == "2300", "t1 abort check c error");
+    }
+    else if (!t0_aborted && !t1_aborted && t2_aborted) {    // only transaction 2 aborted
+        CHECK(r1 == "0100", "t2 abort check a error");
+        CHECK(r2 == "0200", "t2 abort check b error");
+        CHECK(r3 == "1300", "t2 abort check c error");
+    }
+    else {
+        CHECK(false, "check only one transaction abort error");
+    }
+
+    if (global_err_count != 0) {
+        printf("[x_x] Fail test-lab3-part2-b\n");
+    }
+    else {
+        printf("[^_^] Pass test-lab3-part2-b\n");
+    }
+
+    return 0;
 }
-
