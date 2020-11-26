@@ -103,12 +103,12 @@ ydb_protocol::status ydb_server_2pl::get(ydb_protocol::transaction_id id, const 
 	    return ydb_protocol::TRANSIDINV;
 	}
 	if (!kv_store[id].count(ex_id)) {
+        wait_graph[id][ex_id] = 1;
 	    if (cy_query()) {
 	        deadlock_abort(id);
 	        pthread_mutex_unlock(&ks_mutex);
 	        return ydb_protocol::ABORT;
 	    }
-	    wait_graph[id][ex_id] = 1;
 	    pthread_mutex_unlock(&ks_mutex);
 	    lc->acquire(ex_id);
 	    pthread_mutex_lock(&ks_mutex);
@@ -130,12 +130,12 @@ ydb_protocol::status ydb_server_2pl::set(ydb_protocol::transaction_id id, const 
         return ydb_protocol::TRANSIDINV;
 	}
 	if (!kv_store[id].count(ex_id)) {
-        if (cy_query()) {
+        wait_graph[id][ex_id] = 1;
+	    if (cy_query()) {
             deadlock_abort(id);
             pthread_mutex_unlock(&ks_mutex);
             return ydb_protocol::ABORT;
         }
-        wait_graph[id][ex_id] = 1;
         pthread_mutex_unlock(&ks_mutex);
 	    lc->acquire(ex_id);
         pthread_mutex_lock(&ks_mutex);
