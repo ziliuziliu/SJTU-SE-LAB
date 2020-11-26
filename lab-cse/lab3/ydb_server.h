@@ -29,6 +29,7 @@ public:
 	virtual ydb_protocol::status get(ydb_protocol::transaction_id, const std::string, std::string &);
 	virtual ydb_protocol::status set(ydb_protocol::transaction_id, const std::string, const std::string, int &);
 	virtual ydb_protocol::status del(ydb_protocol::transaction_id, const std::string, int &);
+	virtual extent_protocol::extentid_t SDBMHash(const std::string);
 };
 
 #endif

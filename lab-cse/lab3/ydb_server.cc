@@ -9,6 +9,14 @@ static long timestamp(void) {
     return (tv.tv_sec*1000 + tv.tv_usec/1000);
 }
 
+extent_protocol::extentid_t ydb_server::SDBMHash(const std::string key) {
+    unsigned int hash = 0;
+    const char *str=key.c_str();
+    while (*str)
+        hash = (*str++) + (hash << 6) + (hash << 16) - hash;
+    return (hash & 0x3FF)+2;
+}
+
 ydb_server::ydb_server(std::string extent_dst, std::string lock_dst) {
 	ec = new extent_client(extent_dst);
 	lc = new lock_client(lock_dst);
@@ -45,29 +53,20 @@ ydb_protocol::status ydb_server::transaction_abort(ydb_protocol::transaction_id 
 
 ydb_protocol::status ydb_server::get(ydb_protocol::transaction_id id, const std::string key, std::string &out_value) {
 	// lab3: your code here
-	if (mp.count(key) != 1) return ydb_protocol::KEYINV;
-    ec->get(mp[key], out_value);
+	extent_protocol::extentid_t ex_id = SDBMHash(key);
+    ec->get(ex_id, out_value);
 	return ydb_protocol::OK;
 }
 
 ydb_protocol::status ydb_server::set(ydb_protocol::transaction_id id, const std::string key, const std::string value, int &) {
 	// lab3: your code here
-	if (mp.count(key)) ec->put(mp[key], value);
-	else {
-        for (int i = 2; i < 1024; i++) {
-            if (vis[i]) continue;
-            vis[i] = true;
-            mp[key] = i;
-            ec->put(mp[key], value);
-            break;
-        }
-    }
+	extent_protocol::extentid_t ex_id = SDBMHash(key);
+	ec->put(ex_id, value);
 	return ydb_protocol::OK;
 }
 
-ydb_protocol::status ydb_server::del(ydb_protocol::transaction_id id, const std::string key, int &) {
+ydb_protocol::status ydb_server::del(ydb_protocol::transaction_id id, const std::string key, int &r) {
 	// lab3: your code here
-	if (mp.count(key) != 1) return ydb_protocol::KEYINV;
-	vis[mp[key]] = false; mp.erase(key);
+    set(id, key, "", r);
 	return ydb_protocol::OK;
 }

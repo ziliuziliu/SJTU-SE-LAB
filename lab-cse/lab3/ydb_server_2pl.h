@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <queue>
 #include <pthread.h>
 #include "extent_client.h"
 #include "lock_protocol.h"
@@ -12,10 +13,17 @@
 #include "ydb_server.h"
 
 class ydb_server_2pl: public ydb_server {
+private:
+    bool cy_query();
+    void delete_node(int x);
+    void deadlock_abort(ydb_protocol::transaction_id id);
+
 public:
     int trans_id_cnt = 0;
     std::map<int, std::map<int, std::string> > kv_store;
-    pthread_mutex_t tc_mutex, ks_mutex;
+    std::map<int, std::map<int, int> > wait_graph;
+    std::map<int, int> degree;
+    pthread_mutex_t ks_mutex;
 
 	ydb_server_2pl(std::string, std::string);
 	~ydb_server_2pl();
