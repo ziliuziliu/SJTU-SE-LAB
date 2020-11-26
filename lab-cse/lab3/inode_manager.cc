@@ -98,6 +98,7 @@ block_manager::write_block(uint32_t id, const char *buf)
 inode_manager::inode_manager()
 {
   bm = new block_manager();
+  for (int i=1;i<INODE_NUM;i++) inode_map[i] = 0;
   uint32_t root_dir = alloc_inode(extent_protocol::T_DIR);
   if (root_dir != 1) {
     printf("\tim: error! alloc first inode %d, should be 1\n", root_dir);
@@ -116,13 +117,13 @@ inode_manager::alloc_inode(uint32_t type)
    * the 1st is used for root_dir, see inode_manager::inode_manager().
    */
   for (int i=1;i<INODE_NUM;i++) {
-    inode *ino = get_inode(i);
-    if (ino == NULL) {
-      ino = new inode();
+    if (!inode_map[i]) {
+      inode *ino = new inode();
       ino->type = type;
       ino->size = 0;
       ino->atime = ino->ctime = ino->mtime = (unsigned)std::time(0);
       put_inode(i, ino);
+      inode_map[i] = 1;
       return i;
     }
   }
@@ -143,6 +144,7 @@ inode_manager::free_inode(uint32_t inum)
   ino->type = 0;
   put_inode(inum, ino);
   free(ino);
+  inode_map[inum] = 0;
   return;
 }
 

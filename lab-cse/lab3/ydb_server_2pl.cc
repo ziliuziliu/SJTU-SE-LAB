@@ -37,8 +37,10 @@ ydb_protocol::status ydb_server_2pl::transaction_commit(ydb_protocol::transactio
 	    return ydb_protocol::TRANSIDINV;
 	}
 	for (std::map<int, std::string>::iterator it=kv_store[id].begin(); it!=kv_store[id].end(); it++) {
-        ec->put(it->first, it->second);
+	    pthread_mutex_unlock(&ks_mutex);
+	    ec->put(it->first, it->second);
         lc->release(it->first);
+        pthread_mutex_lock(&ks_mutex);
 	}
 	kv_store.erase(id);
 	pthread_mutex_unlock(&ks_mutex);
@@ -52,8 +54,11 @@ ydb_protocol::status ydb_server_2pl::transaction_abort(ydb_protocol::transaction
 	    pthread_mutex_unlock(&ks_mutex);
 	    return ydb_protocol::TRANSIDINV;
 	}
-	for (std::map<int, std::string>::iterator it=kv_store[id].begin(); it!=kv_store[id].end(); it++)
+	for (std::map<int, std::string>::iterator it=kv_store[id].begin(); it!=kv_store[id].end(); it++) {
+        pthread_mutex_unlock(&ks_mutex);
 	    lc->release(it->first);
+	    pthread_mutex_lock(&ks_mutex);
+	}
 	kv_store.erase(id);
 	pthread_mutex_unlock(&ks_mutex);
 	return ydb_protocol::OK;
@@ -68,8 +73,10 @@ ydb_protocol::status ydb_server_2pl::get(ydb_protocol::transaction_id id, const 
 	    return ydb_protocol::TRANSIDINV;
 	}
 	if (!kv_store[id].count(ex_id)) {
+	    pthread_mutex_unlock(&ks_mutex);
 	    lc->acquire(ex_id);
 	    ec->get(ex_id, out_value);
+	    pthread_mutex_unlock(&ks_mutex);
 	    kv_store[id][ex_id] = out_value;
 	}
 	else out_value = kv_store[id][ex_id];
@@ -86,7 +93,9 @@ ydb_protocol::status ydb_server_2pl::set(ydb_protocol::transaction_id id, const 
         return ydb_protocol::TRANSIDINV;
 	}
 	if (!kv_store[id].count(ex_id)) {
+	    pthread_mutex_unlock(&ks_mutex);
 	    lc->acquire(ex_id);
+	    pthread_mutex_lock(&ks_mutex);
 	    kv_store[id][ex_id] = value;
 	}
 	else kv_store[id][ex_id] = value;

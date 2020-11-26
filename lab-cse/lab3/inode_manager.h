@@ -80,6 +80,7 @@ typedef struct inode {
 
 class inode_manager {
  private:
+    int inode_map[1050];
   block_manager *bm;
   struct inode* get_inode(uint32_t inum);
   void put_inode(uint32_t inum, struct inode *ino);
