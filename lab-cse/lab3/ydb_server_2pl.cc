@@ -24,12 +24,10 @@ ydb_server_2pl::~ydb_server_2pl() {
 bool ydb_server_2pl::cy_query() {
     std::map<int, int> deg = degree;
     std::queue<int> q;
-    for (std::map<int, int>::iterator it=deg.begin(); it!=deg.end(); it++) {
+    for (std::map<int, int>::iterator it=deg.begin(); it!=deg.end(); it++)
         if (!it->second) q.push(it->first);
-    }
     while (!q.empty()) {
         int head = q.front(); q.pop();
-	printf("Visiting head %d\n", head);
         std::map<int, int> to = wait_graph[head];
         for (std::map<int, int>::iterator it=to.begin(); it!=to.end(); it++) {
             int pos = it->first;
@@ -37,12 +35,8 @@ bool ydb_server_2pl::cy_query() {
             if (!deg[pos]) q.push(pos);
         }
     }
-    for (std::map<int, int>::iterator it=deg.begin(); it!=deg.end(); it++) {
-        if (it->second) {
-		printf("False %d\n", it->first);
-		return true;
-	}
-    }
+    for (std::map<int, int>::iterator it=deg.begin(); it!=deg.end(); it++)
+        if (it->second) return true;
     return false;
 }
 
@@ -60,6 +54,7 @@ void ydb_server_2pl::deadlock_abort(ydb_protocol::transaction_id id) {
         lc->release(it->first);
     delete_node(id+10000);
     kv_store.erase(id);
+    write_set.erase(id);
 }
 
 ydb_protocol::status ydb_server_2pl::transaction_begin(int, ydb_protocol::transaction_id &out_id) {    // the first arg is not used, it is just a hack to the rpc lib
@@ -67,6 +62,7 @@ ydb_protocol::status ydb_server_2pl::transaction_begin(int, ydb_protocol::transa
 	pthread_mutex_lock(&ks_mutex);
     out_id = trans_id_cnt++;
     kv_store[out_id] = std::map<int, std::string>();
+    write_set[out_id] = std::map<int, int>();
     wait_graph[out_id+10000] = std::map<int, int>();
     degree[out_id+10000] = 0;
     pthread_mutex_unlock(&ks_mutex);
@@ -81,11 +77,13 @@ ydb_protocol::status ydb_server_2pl::transaction_commit(ydb_protocol::transactio
 	    return ydb_protocol::TRANSIDINV;
 	}
 	for (std::map<int, std::string>::iterator it=kv_store[id].begin(); it!=kv_store[id].end(); it++) {
-	    ec->put(it->first, it->second);
+	    if (write_set[id].count(it->first))
+	        ec->put(it->first, it->second);
         lc->release(it->first);
 	}
 	delete_node(id+10000);
 	kv_store.erase(id);
+	write_set.erase(id);
 	pthread_mutex_unlock(&ks_mutex);
 	return ydb_protocol::OK;
 }
@@ -101,6 +99,7 @@ ydb_protocol::status ydb_server_2pl::transaction_abort(ydb_protocol::transaction
 	    lc->release(it->first);
 	delete_node(id+10000);
 	kv_store.erase(id);
+	write_set.erase(id);
 	pthread_mutex_unlock(&ks_mutex);
 	return ydb_protocol::OK;
 }
@@ -116,16 +115,13 @@ ydb_protocol::status ydb_server_2pl::get(ydb_protocol::transaction_id id, const 
 	if (!kv_store[id].count(ex_id)) {
         wait_graph[id+10000][ex_id] = 1;
         degree[ex_id]++;
-	printf("Transaction %d Acquiring lock %d\n", id, ex_id);
 	    if (cy_query()) {
-		    printf("HereAbort.\n");
 	        deadlock_abort(id);
 	        pthread_mutex_unlock(&ks_mutex);
 	        return ydb_protocol::ABORT;
 	    }
 	    pthread_mutex_unlock(&ks_mutex);
 	    lc->acquire(ex_id);
-	    printf("Transaction %d Acquired lock %d\n", id, ex_id);
 	    pthread_mutex_lock(&ks_mutex);
 	    wait_graph[id+10000].erase(ex_id);
 	    wait_graph[ex_id][id+10000] = 1;
@@ -150,24 +146,22 @@ ydb_protocol::status ydb_server_2pl::set(ydb_protocol::transaction_id id, const 
 	if (!kv_store[id].count(ex_id)) {
         wait_graph[id+10000][ex_id] = 1;
         degree[ex_id]++;
-	printf("Transaction %d Acquiring lock %d\n", id, ex_id);
 	    if (cy_query()) {
-		    printf("HereAbort.\n");
             deadlock_abort(id);
             pthread_mutex_unlock(&ks_mutex);
             return ydb_protocol::ABORT;
         }
         pthread_mutex_unlock(&ks_mutex);
 	    lc->acquire(ex_id);
-	printf("Transaction %d Acquired lock %d\n", id, ex_id);
         pthread_mutex_lock(&ks_mutex);
-	wait_graph[id+10000].erase(ex_id);
+	    wait_graph[id+10000].erase(ex_id);
         wait_graph[ex_id][id+10000] = 1;
         degree[ex_id]--;
         degree[id+10000]++;
 	    kv_store[id][ex_id] = value;
 	}
 	else kv_store[id][ex_id] = value;
+	write_set[id][ex_id] = 1;
 	pthread_mutex_unlock(&ks_mutex);
 	return ydb_protocol::OK;
 }

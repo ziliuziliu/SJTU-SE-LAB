@@ -21,6 +21,7 @@ private:
 public:
     int trans_id_cnt = 0;
     std::map<int, std::map<int, std::string> > kv_store;
+    std::map<int, std::map<int, int> >write_set;
     std::map<int, std::map<int, int> > wait_graph;
     std::map<int, int> degree;
     pthread_mutex_t ks_mutex;
