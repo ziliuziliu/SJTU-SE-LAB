@@ -30,6 +30,10 @@ ydb_protocol::status ydb_server_occ::transaction_begin(int, ydb_protocol::transa
 ydb_protocol::status ydb_server_occ::transaction_commit(ydb_protocol::transaction_id id, int &) {
 	// lab3: your code here
 	pthread_mutex_lock(&ks_mutex);
+	if (!kv_store.count(id)) {
+	    pthread_mutex_unlock(&ks_mutex);
+	    return ydb_protocol::TRANSIDINV;
+	}
 	kv_cache *cache = kv_store[id];
 	if (cache->valid) {
 	    for (std::map<int, int>::iterator it1=cache->write_set.begin(); it1!=cache->write_set.end(); it1++) {
@@ -47,20 +51,28 @@ ydb_protocol::status ydb_server_occ::transaction_commit(ydb_protocol::transactio
 	    }
 	    delete cache;
 	    kv_store.erase(id);
+	    pthread_mutex_unlock(&ks_mutex);
 	    return ydb_protocol::OK;
 	}
 	else {
 	    delete cache;
 	    kv_store.erase(id);
+	    pthread_mutex_unlock(&ks_mutex);
 	    return ydb_protocol::ABORT;
 	}
 }
 
 ydb_protocol::status ydb_server_occ::transaction_abort(ydb_protocol::transaction_id id, int &) {
 	// lab3: your code here
+	pthread_mutex_lock(&ks_mutex);
+	if (!kv_store.count(id)) {
+	    pthread_mutex_unlock(&ks_mutex);
+	    return ydb_protocol::TRANSIDINV;
+	}
 	kv_cache *cache = kv_store[id];
 	delete cache;
 	kv_store.erase(id);
+	pthread_mutex_unlock(&ks_mutex);
 	return ydb_protocol::OK;
 }
 
@@ -99,7 +111,6 @@ ydb_protocol::status ydb_server_occ::set(ydb_protocol::transaction_id id, const 
 
 ydb_protocol::status ydb_server_occ::del(ydb_protocol::transaction_id id, const std::string key, int &r) {
 	// lab3: your code here
-	set(id, key, "", r);
-	return ydb_protocol::OK;
+	return set(id, key, "", r);
 }
 
