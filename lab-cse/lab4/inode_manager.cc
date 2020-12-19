@@ -46,7 +46,7 @@ block_manager::alloc_block()
     write_block(BBLOCK(i), buf);
     return i;
   }
-  printf("\tbm: error! not enough block to alloc\n");
+  // printf("\tbm: error! not enough block to alloc\n");
   return 0;
 }
 
@@ -101,7 +101,7 @@ inode_manager::inode_manager()
   for (int i=1;i<INODE_NUM;i++) inode_map[i] = 0;
   uint32_t root_dir = alloc_inode(extent_protocol::T_DIR);
   if (root_dir != 1) {
-    printf("\tim: error! alloc first inode %d, should be 1\n", root_dir);
+    // printf("\tim: error! alloc first inode %d, should be 1\n", root_dir);
     exit(0);
   }
 }
@@ -138,7 +138,7 @@ inode_manager::free_inode(uint32_t inum)
    * note: you need to check if the inode is already a freed one;
    * if not, clear it, and remember to write back to disk.
    */
-  printf("\tim: free inode %d\n",inum);
+  // printf("\tim: free inode %d\n",inum);
   inode *ino = get_inode(inum);
   if (!ino || !(ino->type)) return;
   ino->type = 0;
@@ -202,12 +202,12 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
    * note: read blocks related to inode number inum,
    * and copy them to buf_out
    */
-  printf("\tim: reading file %d\n",inum);  
+  // printf("\tim: reading file %d\n",inum);  
   inode *ino = get_inode(inum);
   char *rv = (char *)malloc(200050);
   int block_cnt=0, size_left;
   *size = size_left = ino->size;
-  printf("size: %d\n",ino->size);
+  // printf("size: %d\n",ino->size);
   for (int i=0;i<=100;i++) {
     if (i!=100) {
       bm->read_block(ino->blocks[i], rv+block_cnt*BLOCK_SIZE);
@@ -246,7 +246,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
    * you need to consider the situation when the size of buf 
    * is larger or smaller than the size of original inode
    */
-  printf("\tim: writing file %d\n",inum);
+  // printf("\tim: writing file %d\n",inum);
   inode *ino = get_inode(inum);
 
   // free old block
@@ -275,7 +275,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
   int block_cnt = 0;
   ino->size = size;
   for (int i=0;i<=100;i++) {
-    printf("i = %d\n", i);
+    // printf("i = %d\n", i);
     if (i!=100) {
       ino->blocks[i] = bm->alloc_block();
       if (size_left < BLOCK_SIZE) {
@@ -326,7 +326,7 @@ inode_manager::getattr(uint32_t inum, extent_protocol::attr &a)
    * note: get the attributes of inode inum.
    * you can refer to "struct attr" in extent_protocol.h
    */
-  printf("\tim: getattr %d\n",inum);
+  // printf("\tim: getattr %d\n",inum);
   inode *ino = get_inode(inum);
   if (!ino) {
      a.type = 0;
@@ -347,7 +347,7 @@ inode_manager::remove_file(uint32_t inum)
    * your code goes here
    * note: you need to consider about both the data block and inode of the file
    */
-  printf("\tim: removing file %d\n",inum);
+  // printf("\tim: removing file %d\n",inum);
   inode *ino = get_inode(inum);
   int old_size = ino->size;
   for (int i=0;i<=100;i++) {

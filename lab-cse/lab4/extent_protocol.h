@@ -33,6 +33,15 @@ class extent_protocol {
   };
 };
 
+class rextent_protocol {
+public:
+  enum xxstatus { OK, RETRY, RPCERR };
+  typedef int status;
+  enum rpc_numbers {
+    refresh = 0x9001,
+  };
+};
+
 inline unmarshall &
 operator>>(unmarshall &u, extent_protocol::attr &a)
 {
