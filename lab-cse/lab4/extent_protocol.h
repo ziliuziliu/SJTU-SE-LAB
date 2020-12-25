@@ -39,6 +39,7 @@ public:
   typedef int status;
   enum rpc_numbers {
     refresh = 0x9001,
+    require = 0x9002,
   };
 };
 

@@ -37,6 +37,7 @@ int extent_server::put(std::string cl, extent_protocol::extentid_t id, std::stri
   im->write_file(id, cbuf, size);
 
   client_map[id]->clients.insert(cl);
+  client_map[id]->current_writer.assign(cl);
   refresh_client(id, cl);
   return extent_protocol::OK;
 }
@@ -50,6 +51,9 @@ int extent_server::get(std::string cl, extent_protocol::extentid_t id, std::stri
   int size = 0;
   char *cbuf = NULL;
 
+  if (client_map[id]->current_writer.size())
+    require_client(id);
+  
   im->read_file(id, &cbuf, &size);
   if (size == 0)
     buf = "";
@@ -59,6 +63,8 @@ int extent_server::get(std::string cl, extent_protocol::extentid_t id, std::stri
   }
   
   client_map[id]->clients.insert(cl);
+  if (client_map[id]->current_writer.size())
+    refresh_client(id, cl);
   return extent_protocol::OK;
 }
 
@@ -67,13 +73,18 @@ int extent_server::getattr(std::string cl, extent_protocol::extentid_t id, exten
   // printf("extent_server: getattr %lld\n", id);
 
   id &= 0x7fffffff;
-  
+
+  if (client_map[id]->current_writer.size())
+    require_client(id);
+
   extent_protocol::attr attr;
   memset(&attr, 0, sizeof(attr));
   im->getattr(id, attr);
   a = attr;
 
   client_map[id]->clients.insert(cl);
+  if (client_map[id]->current_writer.size())
+    refresh_client(id, cl);
   return extent_protocol::OK;
 }
 
@@ -93,7 +104,14 @@ void extent_server::refresh_client(extent_protocol::extentid_t eid, std::string 
   std::set<std::string>::iterator it;
   for (it=client_map[eid]->clients.begin(); it!=client_map[eid]->clients.end(); it++) {
     if (*it == cl) continue;
+    if (*it == client_map[eid]->current_writer)
+      client_map[eid]->current_writer.clear();
     int r;
     handle(*it).safebind()->call(rextent_protocol::refresh, eid, r);
   }
+}
+
+void extent_server::require_client(extent_protocol::extentid_t eid) {
+  int r;
+  handle(client_map[eid]->current_writer).safebind()->call(rextent_protocol::require, eid, r);
 }

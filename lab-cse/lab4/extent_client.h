@@ -9,11 +9,12 @@
 #include "extent_server.h"
 
 struct file_item {
-    bool buf_dirty, attr_dirty;
+    bool buf_dirty, attr_dirty, keep_writing;
     std::string buf;
     extent_protocol::attr attr;
     file_item(bool buf_dirty, bool attr_dirty, uint32_t type)
         :buf_dirty(buf_dirty),attr_dirty(attr_dirty) {
+        keep_writing = false;
         attr.type = type;
         attr.size = 0;
         attr.atime = attr.mtime = attr.ctime = time(NULL);
@@ -40,6 +41,7 @@ class extent_client {
   extent_protocol::status remove(extent_protocol::extentid_t eid);
 
   rextent_protocol::status refresh_handler(extent_protocol::extentid_t eid, int &);
+  rextent_protocol::status require_handler(extent_protocol::extentid_t eid, int &);
 };
 
 #endif

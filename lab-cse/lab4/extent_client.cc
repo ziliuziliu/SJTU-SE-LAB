@@ -29,6 +29,7 @@ extent_client::extent_client(std::string dst)
   last_port = rextent_port;
   rpcs *rlsrpc = new rpcs(rextent_port);
   rlsrpc->reg(rextent_protocol::refresh, this, &extent_client::refresh_handler);
+  rlsrpc->reg(rextent_protocol::require, this, &extent_client::require_handler);
 
   file_cache[1] = new file_item(true, true, extent_protocol::T_DIR);    
 }
@@ -86,12 +87,15 @@ extent_client::put(extent_protocol::extentid_t eid, std::string buf)
 {
   extent_protocol::status ret = extent_protocol::OK;
   int r;
-  ret = cl->call(extent_protocol::put, id, eid, buf, r);
+  if (!file_cache[eid]->keep_writing) {
+    ret = cl->call(extent_protocol::put, id, eid, buf, r);
+    file_cache[eid]->keep_writing = true;
+  }
   if (file_cache.count(eid)) {
-      file_cache[eid]->buf.assign(buf);
-      file_cache[eid]->attr.size = buf.size();
-      file_cache[eid]->attr.atime = file_cache[eid]->attr.mtime = file_cache[eid]->attr.ctime = time(NULL);
-      file_cache[eid]->buf_dirty = file_cache[eid]->attr_dirty = false;
+    file_cache[eid]->buf.assign(buf);
+    file_cache[eid]->attr.size = buf.size();
+    file_cache[eid]->attr.atime = file_cache[eid]->attr.mtime = file_cache[eid]->attr.ctime = time(NULL);
+    file_cache[eid]->buf_dirty = file_cache[eid]->attr_dirty = false;
   }
   return ret;
 }
@@ -108,7 +112,20 @@ extent_client::remove(extent_protocol::extentid_t eid)
 
 rextent_protocol::status
 extent_client::refresh_handler(extent_protocol::extentid_t eid, int &) {
-  if (file_cache.count(eid))
+  if (file_cache.count(eid)) {
     file_cache[eid]->attr_dirty = file_cache[eid]->buf_dirty = true;
+    file_cache[eid]->keep_writing = false;
+  }
+  return rextent_protocol::OK;
+}
+
+rextent_protocol::status
+extent_client::require_handler(extent_protocol::extentid_t eid, int &) {
+  int r;
+  extent_protocol::status ret = cl->call(extent_protocol::put, id, eid, file_cache[eid]->buf, r);
+  if (file_cache.count(eid)) {
+    file_cache[eid]->attr.atime = file_cache[eid]->attr.mtime = file_cache[eid]->attr.ctime = time(NULL);
+    file_cache[eid]->buf_dirty = file_cache[eid]->attr_dirty = false;
+  }
   return rextent_protocol::OK;
 }

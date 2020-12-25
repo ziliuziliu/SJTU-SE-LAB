@@ -11,6 +11,7 @@
 
 struct client_info {
   std::set<std::string> clients;
+  std::string current_writer;
 };
 
 class extent_server {
@@ -25,6 +26,7 @@ class extent_server {
   inode_manager *im;
   std::map<extent_protocol::extentid_t, client_info *> client_map;
   void refresh_client(extent_protocol::extentid_t eid, std::string cl);
+  void require_client(extent_protocol::extentid_t eid);
 
  public:
   extent_server();
